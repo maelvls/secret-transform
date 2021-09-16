@@ -12,8 +12,12 @@ data:
 
 A common request reported in the cert-manager issue
 [#843](https://github.com/jetstack/cert-manager/issues/843) is to create a PEM
-bundle containing both the key and certificate for easier use with HAProxy and
-other applications that require a unified PEM bundle.
+bundle containing both the key and certificate for easier use with software
+that require a unified PEM bundle, such as
+
+- HAProxy, 
+- Hitch,
+- OpenDistro for Elasticsearch.
 
 You can run the `secret-transform` controller (right now, it has to be run
 out-of-cluster since I did not write any manifest) and if you annotate your
