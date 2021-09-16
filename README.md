@@ -5,6 +5,7 @@ resources of the form:
 
 ```yaml
 kind: Secret
+type: kubernetes.io/tls
 data:
   tls.crt: <certificate>
   tls.key: <key>
@@ -26,6 +27,7 @@ Secret with the following annotation:
 ```yaml
 apiVersion: v1
 kind: Secret
+type: kubernetes.io/tls
 metadata:
   annotations:
     cert-manager.io/secret-transform: tls.pem
@@ -40,6 +42,7 @@ contains the key and certificate concatenated:
 ```yaml
 apiVersion: v1
 kind: Secret
+type: kubernetes.io/tls
 metadata:
   annotations:
     cert-manager.io/secret-transform: tls.pem
