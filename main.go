@@ -16,7 +16,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"encoding/pem"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
@@ -36,8 +36,8 @@ import (
 )
 
 const (
-	secretAnnotKey = "cert-manager.io/secret-transform"
-	tlsPEMDataKey  = "tls.pem"
+	secretAnnotKey = "cert-manager-secret-transform"
+	tlsDERDataKey  = "tls.der"
 )
 
 func init() {
@@ -45,7 +45,7 @@ func init() {
 }
 
 func main() {
-	log := log.Log.WithName("entrypoint")
+	log := log.Log.WithName("secret-transform")
 
 	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{})
 	if err != nil {
@@ -71,25 +71,19 @@ func main() {
 				return reconcile.Result{}, nil
 			}
 
-			tlsCrt, exists := secret.Data["tls.crt"]
-			if !exists {
-				rec.Eventf(&secret, corev1.EventTypeWarning, "MissingTLSCrt", "Secret %s does not contain a 'tls.crt' data key", secret.Name)
+			block, _ := pem.Decode(tlsKey)
+			tlsDERNew := block.Bytes
+			if tlsDEROld, exists := secret.Data[tlsDERDataKey]; exists && bytes.Compare(tlsDEROld, tlsDERNew) == 0 {
 				return reconcile.Result{}, nil
 			}
-
-			tlsPEMNew := []byte(fmt.Sprintf("%s%s", tlsKey, tlsCrt))
-
-			if tlsPEMOld, exists := secret.Data[tlsPEMDataKey]; exists && bytes.Compare(tlsPEMOld, tlsPEMNew) == 0 {
-				return reconcile.Result{}, nil
-			}
-
-			secret.Data[tlsPEMDataKey] = tlsPEMNew
+			log.Info("Updating secret with key", secret.Name, tlsDERDataKey)
+			secret.Data[tlsDERDataKey] = tlsDERNew
 			err = mgr.GetClient().Update(ctx, &secret)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 
-			rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s to the Secret data", tlsPEMDataKey)
+			rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s to the Secret data", tlsDERDataKey)
 			return reconcile.Result{}, nil
 		}),
 	})
@@ -110,10 +104,10 @@ func main() {
 		}
 
 		switch value {
-		case tlsPEMDataKey:
+		case tlsDERDataKey:
 			return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: o.GetNamespace(), Name: o.GetName()}}}
 		default:
-			rec.Eventf(o, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", value, tlsPEMDataKey)
+			rec.Eventf(o, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", value, secretAnnotKey)
 			return nil
 		}
 	})); err != nil {

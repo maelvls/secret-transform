@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager-tlsder-secret-transformer
+spec:
+  selector:
+    matchLabels:
+      app: cert-manager-tlsder-secret-transformer
+  template:
+    metadata:
+      labels:
+        app: cert-manager-tlsder-secret-transformer
+    spec:
+      serviceAccountName: cert-manager
+      containers:
+      - name: app-container
+        image: seuf/secret-transform:latest
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "200m"
