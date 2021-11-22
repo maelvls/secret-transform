@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/pem"
 	"os"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,8 +37,8 @@ import (
 )
 
 const (
-	secretAnnotKey = "cert-manager-secret-transform"
-	tlsDERDataKey  = "tls.der"
+	secretAnnotKeyIn  = "secret-transform-in"
+	secretAnnotKeyOut = "secret-transform-out"
 )
 
 func init() {
@@ -65,25 +66,84 @@ func main() {
 				return reconcile.Result{}, err
 			}
 
-			tlsKey, exists := secret.Data["tls.key"]
-			if !exists {
-				rec.Eventf(&secret, corev1.EventTypeWarning, "MissingTLSKey", "Secret %s does not contain a 'tls.key' data key", secret.Name)
+			keyOut, hasOut := secret.GetAnnotations()[secretAnnotKeyOut]
+			inputsRaw, hasIn := secret.GetAnnotations()[secretAnnotKeyIn]
+
+			if !hasIn && !hasOut {
+				// Both "secret-transform-in" and "secret-transform-out" are not
+				// set, so we don't need to do anything.
 				return reconcile.Result{}, nil
 			}
 
-			block, _ := pem.Decode(tlsKey)
-			tlsDERNew := block.Bytes
-			if tlsDEROld, exists := secret.Data[tlsDERDataKey]; exists && bytes.Compare(tlsDEROld, tlsDERNew) == 0 {
+			if hasOut != hasIn {
+				rec.Eventf(&secret, corev1.EventTypeWarning, "MissingAnnotation", "Both annotations %s and %s must be set", secretAnnotKeyIn, secretAnnotKeyOut)
 				return reconcile.Result{}, nil
 			}
-			log.Info("Updating secret with key", secret.Name, tlsDERDataKey)
-			secret.Data[tlsDERDataKey] = tlsDERNew
+
+			if keyOut != "ca.crt" && keyOut != "tls.crt" && keyOut != "tls.key" {
+				rec.Eventf(&secret, corev1.EventTypeWarning, "InvalidOut", "Output cannot be 'tls.key', 'tls.crt', or 'ca.crt'")
+				return reconcile.Result{}, nil
+			}
+
+			inputs := strings.Split(inputsRaw, ",")
+
+			if len(inputsRaw) == 0 {
+				rec.Eventf(&secret, corev1.EventTypeWarning, "InvalidIn", "The value for the annotation %s cannot be empty", secretAnnotKeyIn)
+				return reconcile.Result{}, nil
+			}
+
+			var newOutValue []byte
+			switch {
+			case strings.HasSuffix(keyOut, "der"):
+				if len(inputs) > 1 {
+					rec.Eventf(&secret, corev1.EventTypeWarning, "MultipleDER", "When using the DER format, you can only pass a single input with the %s annotation", secretAnnotKeyIn)
+					return reconcile.Result{}, nil
+				}
+
+				keyIn := inputs[0]
+				bytes, ok := secret.Data[keyIn]
+				if !ok {
+					rec.Eventf(&secret, corev1.EventTypeWarning, "MissingIn", "The input secret key %s was not found in the secret", keyIn)
+					return reconcile.Result{}, nil
+				}
+
+				pemBlock, err := pem.Decode(bytes)
+				if err != nil {
+					rec.Eventf(&secret, corev1.EventTypeWarning, "InvalidIn", "Input secret key '%s' cannot be decoded", keyIn)
+					return reconcile.Result{}, nil
+				}
+
+				newOutValue = pemBlock.Bytes
+			case strings.HasSuffix(keyOut, "pem"):
+				for _, input := range inputs {
+					if input != "ca.crt" && input != "tls.crt" && input != "tls.key" {
+						rec.Eventf(&secret, corev1.EventTypeWarning, "InvalidIn", "The input secret keys can only be one of 'tls.key', 'tls.crt', or 'ca.crt' or a comma-separated list of those")
+						continue
+					}
+
+					pemBytes, ok := secret.Data[input]
+					if !ok {
+						rec.Eventf(&secret, corev1.EventTypeWarning, "MissingIn", "The input secret key %s was not found in the secret", input)
+						return reconcile.Result{}, nil
+					}
+
+					newOutValue = append(newOutValue, pemBytes...)
+				}
+			}
+
+			oldOutValue, exists := secret.Data[keyOut]
+			if exists && bytes.Compare(oldOutValue, newOutValue) == 0 {
+				return reconcile.Result{}, nil
+			}
+
+			log.Info("Updating secret with key", secret.Name, keyOut)
+			secret.Data[keyOut] = newOutValue
 			err = mgr.GetClient().Update(ctx, &secret)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 
-			rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s to the Secret data", tlsDERDataKey)
+			rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added or updated key %s to the Secret data", keyOut)
 			return reconcile.Result{}, nil
 		}),
 	})
@@ -93,23 +153,7 @@ func main() {
 	}
 
 	if err := c.Watch(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
-		if o.GetAnnotations() == nil {
-			return nil
-		}
-
-		var value string
-		var ok bool
-		if value, ok = o.GetAnnotations()[secretAnnotKey]; !ok {
-			return nil
-		}
-
-		switch value {
-		case tlsDERDataKey:
-			return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: o.GetNamespace(), Name: o.GetName()}}}
-		default:
-			rec.Eventf(o, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", value, secretAnnotKey)
-			return nil
-		}
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: o.GetNamespace(), Name: o.GetName()}}}
 	})); err != nil {
 		log.Error(err, "unable to watch Secrets")
 		os.Exit(1)
