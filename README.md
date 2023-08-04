@@ -1,6 +1,15 @@
 # Secret Transformer
 
-> ⚠️ The combined PEM feature provided by this addon will be added to cert-manager 1.7. See [PR #4598](https://github.com/jetstack/cert-manager/pull/4598).
+- [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
+- [Combined PEM bundle](#combined-pem-bundle)
+  - [Combined PEM: Use-cases](#combined-pem-use-cases)
+  - [Use-case: MongoDB](#use-case-mongodb)
+  - [Use-case: HAProxy Community Edition and HAProxy Enterprise Edition](#use-case-haproxy-community-edition-and-haproxy-enterprise-edition)
+  - [Use-case: Hitch](#use-case-hitch)
+  - [Use-case: Postgres JBDC driver (lower than 42.2.9)](#use-case-postgres-jbdc-driver-lower-than-4229)
+  - [Use-case: Ejabbed](#use-case-ejabbed)
+  - [Use-case: Elasticsearch (Elastic's and Open Distro's)](#use-case-elasticsearch-elastics-and-open-distros)
+  - [Use-case: Dovecot](#use-case-dovecot)
 
 The cert-manager issuers store the X.509 keys and certificates in Secret
 resources of the form:
@@ -13,12 +22,60 @@ data:
   tls.key: <key>
 ```
 
-A common request reported in the cert-manager issue
-[#843](https://github.com/jetstack/cert-manager/issues/843) is to create a PEM
-bundle containing both the key and certificate for easier use with software
-that require a unified PEM bundle, such as
+## Renaming the key of a Secret
 
-- HAProxy, 
+In FluxCD, the expected keys aren't `tls.crt`, `tls.key`, and `ca.crt`. Instead,
+FluxCD expects the keys `caFile`, `certFile`, and `keyFile`. The
+`secret-transform` controller can be used to create a copy of the standard keys
+so that you can use them from FluxCD. For example, if you annotate your Secret
+with the following annotation:
+
+```yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  annotations:
+    cert-manager.io/secret-copy-ca.crt: caFile
+    cert-manager.io/secret-copy-tls.crt: certFile
+    cert-manager.io/secret-copy-tls.key: keyFile
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
+  tls.key: LS0tLS1CRUdJToCi0tLS0tRU5EIF...SBQUklWQVRFIEtFWS0tLS0tCg==
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
+```
+
+The Secret will be transformed to:
+
+```yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  annotations:
+    cert-manager.io/secret-copy-ca.crt: caFile
+    cert-manager.io/secret-copy-tls.crt: certFile
+    cert-manager.io/secret-copy-tls.key: keyFile
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
+  tls.key: LS0tLS1CRUdJToCi0tLS0tRU5EIF...SBQUklWQVRFIEtFWS0tLS0tCg==
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
+  certFile: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg== # ✨
+  keyFile: LS0tLS1CRUdJToCi0tLS0tRU5EIF...SBQUklWQVRFIEtFWS0tLS0tCg== # ✨
+  caFile: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg== # ✨
+```
+
+## Combined PEM bundle
+
+> ⚠️ The combined PEM feature provided by this addon has been added to
+> cert-manager 1.7.
+
+Another common request reported in the cert-manager issue
+[#843](https://github.com/jetstack/cert-manager/issues/843) is to create a PEM
+bundle containing both the key and certificate for easier use with software that
+require a unified PEM bundle, such as
+
+- HAProxy,
 - Hitch,
 - OpenDistro for Elasticsearch.
 
@@ -77,15 +134,7 @@ Dfvp7OOGAN6dEOM4+qR9sdjoSYKEBpsr6GtPAQw4dy753ec5
 -----END CERTIFICATE-----
 ```
 
-## Use cases
-
-
-- [Use-case: MongoDB](#use-case-mongodb)
-- [Use-case: HAProxy Community Edition and HAProxy Enterprise Edition](#use-case-haproxy-community-edition-and-haproxy-enterprise-edition)
-- [Use-case: Hitch](#use-case-hitch)
-- [Use-case: Postgres JBDC driver (lower than 42.2.9)](#use-case-postgres-jbdc-driver-lower-than-4229)
-- [Use-case: Ejabbed](#use-case-ejabbed)
-- [Use-case: Elasticsearch (Elastic's and Open Distro's)](#use-case-elasticsearch-elastics-and-open-distros)
+### Combined PEM: Use-cases
 
 <a id="use-case-mongodb"/>
 

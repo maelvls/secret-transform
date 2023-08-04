@@ -18,11 +18,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -36,8 +38,11 @@ import (
 )
 
 const (
-	secretAnnotKey = "cert-manager.io/secret-transform"
-	tlsPEMDataKey  = "tls.pem"
+	secretAnnotKey           = "cert-manager.io/secret-transform"
+	secretSyncCACRTAnnotKey  = "cert-manager.io/secret-copy-ca.crt"
+	secretSyncTLSCrtAnnotKey = "cert-manager.io/secret-copy-tls.crt"
+	secretSyncTLSKeyAnnotKey = "cert-manager.io/secret-copy-tls.key"
+	tlsPEMDataKey            = "tls.pem"
 )
 
 func init() {
@@ -65,31 +70,50 @@ func main() {
 				return reconcile.Result{}, err
 			}
 
-			tlsKey, exists := secret.Data["tls.key"]
-			if !exists {
-				rec.Eventf(&secret, corev1.EventTypeWarning, "MissingTLSKey", "Secret %s does not contain a 'tls.key' data key", secret.Name)
+			secretBefore := secret.DeepCopy()
+
+			transformTo := secret.GetAnnotations()[secretAnnotKey]
+			if transformTo != "" {
+				mergeCombinedPEM(ctx, rec, secret)
+			}
+
+			copyCACrtKey := secret.GetAnnotations()[secretSyncCACRTAnnotKey]
+			if copyCACrtKey != "" {
+				copyKey(ctx, rec, secret, "ca.crt", copyCACrtKey)
+			}
+
+			copyTLSCrtKey := secret.GetAnnotations()[secretSyncTLSCrtAnnotKey]
+			if copyTLSCrtKey != "" {
+				copyKey(ctx, rec, secret, "tls.crt", copyTLSCrtKey)
+			}
+
+			copyTLSKeyKey := secret.GetAnnotations()[secretSyncTLSKeyAnnotKey]
+			if copyTLSKeyKey != "" {
+				copyKey(ctx, rec, secret, "tls.key", copyTLSKeyKey)
+			}
+
+			if reflect.DeepEqual(secret.Data, secretBefore.Data) {
 				return reconcile.Result{}, nil
 			}
 
-			tlsCrt, exists := secret.Data["tls.crt"]
-			if !exists {
-				rec.Eventf(&secret, corev1.EventTypeWarning, "MissingTLSCrt", "Secret %s does not contain a 'tls.crt' data key", secret.Name)
-				return reconcile.Result{}, nil
-			}
-
-			tlsPEMNew := []byte(fmt.Sprintf("%s%s", tlsKey, tlsCrt))
-
-			if tlsPEMOld, exists := secret.Data[tlsPEMDataKey]; exists && bytes.Compare(tlsPEMOld, tlsPEMNew) == 0 {
-				return reconcile.Result{}, nil
-			}
-
-			secret.Data[tlsPEMDataKey] = tlsPEMNew
 			err = mgr.GetClient().Update(ctx, &secret)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 
-			rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s to the Secret data", tlsPEMDataKey)
+			if transformTo != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s to the Secret data", tlsPEMDataKey)
+			}
+			if copyCACrtKey != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied key %s to the key %s in the Secret data", copyCACrtKey, "ca.crt")
+			}
+			if copyTLSCrtKey != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied key %s to the key %s in the Secret data", copyTLSCrtKey, "tls.crt")
+			}
+			if copyTLSKeyKey != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied key %s to the key %s in the Secret data", copyTLSKeyKey, "tls.key")
+			}
+
 			return reconcile.Result{}, nil
 		}),
 	})
@@ -102,20 +126,14 @@ func main() {
 		if o.GetAnnotations() == nil {
 			return nil
 		}
-
-		var value string
-		var ok bool
-		if value, ok = o.GetAnnotations()[secretAnnotKey]; !ok {
+		if o.GetAnnotations()[secretAnnotKey] == "" &&
+			o.GetAnnotations()[secretSyncCACRTAnnotKey] == "" &&
+			o.GetAnnotations()[secretSyncTLSCrtAnnotKey] == "" &&
+			o.GetAnnotations()[secretSyncTLSKeyAnnotKey] == "" {
 			return nil
 		}
 
-		switch value {
-		case tlsPEMDataKey:
-			return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: o.GetNamespace(), Name: o.GetName()}}}
-		default:
-			rec.Eventf(o, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", value, tlsPEMDataKey)
-			return nil
-		}
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: o.GetNamespace(), Name: o.GetName()}}}
 	})); err != nil {
 		log.Error(err, "unable to watch Secrets")
 		os.Exit(1)
@@ -126,4 +144,52 @@ func main() {
 		log.Error(err, "unable to run manager")
 		os.Exit(1)
 	}
+}
+
+func mergeCombinedPEM(ctx context.Context, rec record.EventRecorder, secret corev1.Secret) {
+	transformTo := secret.GetAnnotations()[secretAnnotKey]
+
+	if transformTo != tlsPEMDataKey {
+		rec.Eventf(&secret, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", transformTo, tlsPEMDataKey)
+		return
+	}
+
+	tlsKey, exists := secret.Data["tls.key"]
+	if !exists {
+		rec.Eventf(&secret, corev1.EventTypeWarning, "MissingTLSKey", "Secret %s does not contain a 'tls.key' data key", secret.Name)
+		return
+	}
+
+	tlsCrt, exists := secret.Data["tls.crt"]
+	if !exists {
+		rec.Eventf(&secret, corev1.EventTypeWarning, "MissingTLSCrt", "Secret %s does not contain a 'tls.crt' data key", secret.Name)
+		return
+	}
+
+	tlsPEMNew := []byte(fmt.Sprintf("%s%s", tlsKey, tlsCrt))
+
+	if tlsPEMOld, exists := secret.Data[tlsPEMDataKey]; exists && bytes.Compare(tlsPEMOld, tlsPEMNew) == 0 {
+		return
+	}
+
+	secret.Data[tlsPEMDataKey] = tlsPEMNew
+}
+
+// Only return an error when the error "retriable" i.e., retriying may fix the
+// issue (e.g. a network error or optimistic locking).
+func copyKey(ctx context.Context, rec record.EventRecorder, secret corev1.Secret, keyFrom string, keyTo string) (bool, reconcile.Result, error) {
+	caCrtOriginal, exists := secret.Data[keyFrom]
+	if !exists {
+		rec.Eventf(&secret, corev1.EventTypeWarning, "MissingCACrtKey", "Secret %s does not contain a '%s' data key", secret.Name, keyFrom)
+		return true, reconcile.Result{}, nil
+	}
+
+	caCrtCopy := secret.Data[keyTo]
+	if bytes.Compare(caCrtOriginal, caCrtCopy) == 0 {
+		return true, reconcile.Result{}, nil
+	}
+
+	secret.Data[keyTo] = secret.Data[keyFrom]
+
+	return false, reconcile.Result{}, nil
 }
