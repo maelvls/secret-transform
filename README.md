@@ -1,6 +1,7 @@
 # Secret Transformer
 
 - [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
+  - [Use-case: FluxCD](#use-case-fluxcd)
 - [Combined PEM bundle](#combined-pem-bundle)
   - [Use-case: MongoDB](#use-case-mongodb)
   - [Use-case: HAProxy Community Edition and HAProxy Enterprise Edition](#use-case-haproxy-community-edition-and-haproxy-enterprise-edition)
@@ -23,11 +24,25 @@ data:
 
 ## Renaming the key of a Secret
 
-In FluxCD, the expected keys aren't `tls.crt`, `tls.key`, and `ca.crt`. Instead,
+cert-manager doesn't support customizing the name of the keys used in the
+Secrets. The keys are fixed to `tls.crt`, `tls.key`, and `ca.crt`.
+
+You can use the three annotations below to "rename" (or rather copy) the keys of
+a Secret:
+
+```yaml
+cert-manager.io/secret-copy-ca.crt: caFile
+cert-manager.io/secret-copy-tls.crt: certFile
+cert-manager.io/secret-copy-tls.key: keyFile
+```
+
+### Use-case: FluxCD
+
 FluxCD expects the keys `caFile`, `certFile`, and `keyFile`. The
 `secret-transform` controller can be used to create a copy of the standard keys
-so that you can use them from FluxCD. For example, if you annotate your Secret
-with the following annotation:
+so that you can use them from FluxCD.
+
+For example, if you annotate your Secret with the following annotation:
 
 ```yaml
 apiVersion: v1
@@ -154,9 +169,7 @@ net:
 
 ### Use-case: HAProxy Community Edition and HAProxy Enterprise Edition
 
-- HAProxy,
-- Hitch,
-- OpenDistro for Elasticsearch. The [`crt`](https://cbonte.github.io/haproxy-dconv/2.5/configuration.html#5.1-crt) parameter requires a PEM bundle containing the PKCS#8 private key followed by the X.509 certificate chain. An example of configuration looks like this:
+The [`crt`](https://cbonte.github.io/haproxy-dconv/2.5/configuration.html#5.1-crt) parameter requires a PEM bundle containing the PKCS#8 private key followed by the X.509 certificate chain. An example of configuration looks like this:
 
 ```haproxy
 frontend www
