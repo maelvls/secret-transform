@@ -2,7 +2,6 @@
 
 - [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
 - [Combined PEM bundle](#combined-pem-bundle)
-  - [Combined PEM: Use-cases](#combined-pem-use-cases)
   - [Use-case: MongoDB](#use-case-mongodb)
   - [Use-case: HAProxy Community Edition and HAProxy Enterprise Edition](#use-case-haproxy-community-edition-and-haproxy-enterprise-edition)
   - [Use-case: Hitch](#use-case-hitch)
@@ -133,8 +132,6 @@ MIIFYDCCBEigAwIBAgIQQAF3ITfU6UK47naqPGQKtzANBgkqhkiG9w0BAQsFADA/
 Dfvp7OOGAN6dEOM4+qR9sdjoSYKEBpsr6GtPAQw4dy753ec5
 -----END CERTIFICATE-----
 ```
-
-### Combined PEM: Use-cases
 
 <a id="use-case-mongodb"/>
 
