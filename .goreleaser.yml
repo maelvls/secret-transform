@@ -14,7 +14,8 @@ builds:
       - arm64
 
 kos:
-  - tags:
+  - repository: ghcr.io/maelvls/secret-transform
+    tags:
       - "{{.Version}}"
       - latest
     bare: true
@@ -22,9 +23,14 @@ kos:
     platforms:
       - linux/amd64
       - linux/arm64
-    repository: ghcr.io/maelvls/secret-transform
-    labels:
-      org.opencontainers.image.source: https://github.com/maelvls/secret-transform
+    # It isn't possible to set custom annotations with ko. That means that the
+    # GitHub Package won't be showing as part of the secret-transform repo.
+    # Ref: https://github.com/ko-build/ko/issues/1090
+    # Why: https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package
+    # annotations:
+    #   org.opencontainers.image.source: https://github.com/maelvls/secret-transform
+    creation_time: "{{.CommitTimestamp}}"
+    ko_data_creation_time: "{{.CommitTimestamp}}"
 
 release:
   draft: true

@@ -3,4 +3,5 @@ name: secret-transform
 type: application
 version: 0.0.0
 sources:
+  # https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package
   - https://github.com/maelvls/secret-transform
