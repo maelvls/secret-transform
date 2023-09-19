@@ -1,6 +1,7 @@
 # Secret Transformer
 
 - [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
+  - [Use-case: Redis](#use-case-redis)
   - [Use-case: FluxCD](#use-case-fluxcd)
 - [Combined PEM bundle](#combined-pem-bundle)
   - [Use-case: MongoDB](#use-case-mongodb)
@@ -34,6 +35,67 @@ a Secret:
 cert-manager.io/secret-copy-ca.crt: caFile
 cert-manager.io/secret-copy-tls.crt: certFile
 cert-manager.io/secret-copy-tls.key: keyFile
+```
+
+### Use-case: Redis
+
+If you are using Redis Enterprise for Kubernetes, the page [Manage Redis
+Enterprise cluster (REC)
+certificates](https://docs.redis.com/latest/kubernetes/security/manage-rec-certificates/)
+will ask you to create a Secret with the following keys:
+
+```yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+stringData:
+  name: proxy # <proxy | api | cm | syncer | metrics_exporter>
+  key: <the PEM-encoded contents of the private key>
+  certificate: <the PEM-encoded contents of the certificate>
+```
+
+You can use secret-transform in combination with cert-manager to obtain this
+Secret.
+
+The Secret needs to be created beforehand so that `name: proxy` shows correctly.
+When a Secret already exists, cert-manager doesn't create a new one: it simply
+updates `tls.crt`, `tls.key`, and `ca.crt`.
+
+The pre-created Secret I suggest is:
+
+```yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: redis-cert1
+  annotations:
+    cert-manager.io/secret-copy-tls.crt: certificate
+    cert-manager.io/secret-copy-tls.key: key
+data:
+  name: proxy
+```
+
+After cert-manager has filled in `tls.crt` and `tls.key`, secret-manager will
+copy these two fields into `certificate` and `key`. The resulting Secret will
+look like this:
+
+```yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: redis-cert1
+  annotations:
+    cert-manager.io/secret-copy-tls.crt: certificate
+    cert-manager.io/secret-copy-tls.key: key
+data:
+  tls.crt: LS0tLCR...UdJ0tC7g==
+  tls.key: CRUdJTo...Ci0tLS0t==
+  ca.crt: ...
+  certificate: LS0tLCR...UdJ0tC7g==
+  key: CRUdJTo...Ci0tLS0t==
+  name: proxy
 ```
 
 ### Use-case: FluxCD
