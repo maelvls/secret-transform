@@ -23,6 +23,8 @@ kos:
       - linux/amd64
       - linux/arm64
     repository: ghcr.io/maelvls/secret-transform
+    labels:
+      org.opencontainers.image.source: https://github.com/maelvls/secret-transform
 
 release:
   draft: true
