@@ -27,7 +27,7 @@ jobs:
 
       - name: Run GoReleaser (PR)
         uses: goreleaser/goreleaser-action@v5
-        if: '!startsWith(github.ref , "refs/tags")'
+        if: ${{ !startsWith(github.ref, 'refs/tags') }}
         with:
           args: release --snapshot
         env:
@@ -35,7 +35,7 @@ jobs:
 
       - name: Run GoReleaser (Publish Release)
         uses: goreleaser/goreleaser-action@v5
-        if: 'startsWith(github.ref , "refs/tags")'
+        if: ${{ startsWith(github.ref , 'refs/tags') }}
         with:
           args: release
         env:
