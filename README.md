@@ -355,3 +355,23 @@ user-focused messages.
 
 Finally, click "Publish" to announce the release to everyone who is watching the
 repository!
+
+> **Note:** It is also possible to run `goreleaser` locally. First, install
+> Goreleaser and Helm 3.12 (or above) since we need the annotation
+> `org.opencontainers.image.source`. Then, run:
+>
+> ```bash
+> # This is a dry-run just to see if the Helm chart and the images can be build.
+> goreleaser --snapshot --clean
+> ```
+>
+> I often don't have the time to wait for GitHub Actions to run goreleaser, so I
+> often run it myself:
+>
+> ```bash
+> # This is the real deal.
+> export GITHUB_TOKEN=...
+> goreleaser
+> ```
+>
+> But it is preferable to let the GitHub Action do it.
