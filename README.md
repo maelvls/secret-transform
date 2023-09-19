@@ -1,7 +1,10 @@
-# Secret Transformer
+# Secret Transform
 
+Copy and tranform the contents of your Kubernetes Secrets.
+
+- [Installation](#installation)
 - [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
-  - [Use-case: Redis](#use-case-redis)
+  - [Use-case: Redis Enterprise for Kubernetes](#use-case-redis-enterprise-for-kubernetes)
   - [Use-case: FluxCD](#use-case-fluxcd)
 - [Combined PEM bundle](#combined-pem-bundle)
   - [Use-case: MongoDB](#use-case-mongodb)
@@ -13,15 +16,14 @@
   - [Use-case: Dovecot](#use-case-dovecot)
 - [Cut a New Release](#cut-a-new-release)
 
-The cert-manager issuers store the X.509 keys and certificates in Secret
-resources of the form:
+## Installation
 
-```yaml
-kind: Secret
-type: kubernetes.io/tls
-data:
-  tls.crt: <certificate>
-  tls.key: <key>
+A Helm chart is available as well as container images. To install
+secret-transform, run:
+
+```bash
+helm upgrade --install secret-transform -n secret-transform --create-namespace \
+  oci://ghcr.io/maelvls/charts/secret-transform
 ```
 
 ## Renaming the key of a Secret
@@ -30,15 +32,43 @@ cert-manager doesn't support customizing the name of the keys used in the
 Secrets. The keys are fixed to `tls.crt`, `tls.key`, and `ca.crt`.
 
 You can use the three annotations below to "rename" (or rather copy) the keys of
-a Secret:
+a Secret. Let's imagine you want the Secret to have the private key stored in
+the key `keyFile`, the certificate in the key `certFile`, and the CA certificate
+in the key `caFile`. You can annotate your Secret with the following
+annotations:
 
 ```yaml
-cert-manager.io/secret-copy-ca.crt: caFile
-cert-manager.io/secret-copy-tls.crt: certFile
-cert-manager.io/secret-copy-tls.key: keyFile
+kind: Secret
+metadata:
+  annotations:
+    cert-manager.io/secret-copy-ca.crt: caFile    # ✨ "ca.crt" to be renamed to "caFile"
+    cert-manager.io/secret-copy-tls.crt: certFile # ✨ "tls.crt" to be renamed to "certFile"
+    cert-manager.io/secret-copy-tls.key: keyFile  # ✨ "tls.key" to be renamed to "keyFile"
+stringData:
+  tls.crt: <the PEM-encoded contents of the certificate>
+  tls.key: <the PEM-encoded contents of the private key>
+  ca.crt: <the PEM-encoded contents of the CA certificate>
 ```
 
-### Use-case: Redis
+After adding the annotations, you will see the new keys appear in the Secret:
+
+```diff
+ kind: Secret
+ metadata:
+   annotations:
+     cert-manager.io/secret-copy-ca.crt: caFile
+     cert-manager.io/secret-copy-tls.crt: certFile
+     cert-manager.io/secret-copy-tls.key: keyFile
+ data:
+    tls.crt: <the PEM-encoded contents of the certificate>
+    tls.key: <the PEM-encoded contents of the private key>
+    ca.crt: <the PEM-encoded contents of the CA certificate>
++   certFile: <copied from tls.crt>
++   keyFile: <copied from tls.key>
++   caFile: <copied from ca.crt>
+```
+
+### Use-case: Redis Enterprise for Kubernetes
 
 If you are using Redis Enterprise for Kubernetes, the page [Manage Redis
 Enterprise cluster (REC)
