@@ -1,6 +1,6 @@
-module github.com/maelvls/tlspem
+module github.com/maelvls/secret-transform
 
-go 1.17
+go 1.21
 
 require (
 	k8s.io/api v0.22.1
