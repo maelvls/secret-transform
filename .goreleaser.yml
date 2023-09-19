@@ -1,0 +1,39 @@
+# .goreleaser.yml
+
+before:
+  hooks:
+    - helm package ./deploy/chart --version {{ trimprefix .Version "v"}} --app-version {{ .Version }}
+    - '{{if .IsSnapshot}}echo SKIPPING: {{end}}helm push ./secret-transform-{{ trimprefix .Version "v"}}.tgz oci://ghcr.io/maelvls/charts'
+
+builds:
+  - env: ["CGO_ENABLED=0"]
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+kos:
+  - tags:
+      - "{{.Version}}"
+      - latest
+    bare: true
+    preserve_import_paths: false
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    repository: ghcr.io/maelvls/secret-transform
+
+release:
+  draft: true
+  replace_existing_draft: true
+  target_commitish: "{{ .Commit }}"
+  footer: |
+    ## Helm Chart
+
+    The Helm chart can be used with:
+
+    ```bash
+    helm upgrade --install secret-transform -n secret-transform --create-namespace \
+      oci://ghcr.io/maelvls/charts/secret-transform --version {{ trimprefix .Version "v" }}
+    ```

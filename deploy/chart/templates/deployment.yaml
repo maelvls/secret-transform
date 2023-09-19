@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "secret-transform.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      {{- include "secret-transform.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "secret-transform.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "secret-transform.name" . }}
+      containers:
+        - name: secret-transform
+          command:
+            - "/ko-app/secret-transform"
+            {{- with .Values.args }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          env:
+          {{- with .Values.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          image: {{ $.Values.image.repository }}:{{ tpl $.Values.image.tag . }} # x-release-please-version
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}

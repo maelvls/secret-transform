@@ -11,6 +11,7 @@
   - [Use-case: Ejabbed](#use-case-ejabbed)
   - [Use-case: Elasticsearch (Elastic's and Open Distro's)](#use-case-elasticsearch-elastics-and-open-distros)
   - [Use-case: Dovecot](#use-case-dovecot)
+- [Cut a New Release](#cut-a-new-release)
 
 The cert-manager issuers store the X.509 keys and certificates in Secret
 resources of the form:
@@ -306,3 +307,21 @@ Source: https://github.com/jetstack/cert-manager/issues/843#issuecomment-6916930
 Dovecot is an IMAP and POP3 server. It requires separate PEM files for the certificate and private key. One person is asking for "PEM format" but I don't quite understand why. See: https://doc.dovecot.org/configuration_manual/dovecot_ssl_configuration/
 
 > ❌ secret-transform is not able to work around this issue yet.
+
+## Cut a New Release
+
+We use `goreleaser`. To cut a new release:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The GitHub Action will push the new Helm chart and Docker images, and a draft
+GitHub release will be created.
+
+Then, edit the draft GitHub release by rewriting the commit messages into
+user-focused messages.
+
+Finally, click "Publish" to announce the release to everyone who is watching the
+repository!
