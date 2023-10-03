@@ -4,7 +4,8 @@ Copy and tranform the contents of your Kubernetes Secrets that contain TLS key
 material. When a Secret is changed, secret-transform automatically re-copies or
 re-transforms the Secret.
 
-- [Installation](#installation)
+- [Installation \& Quick Start](#installation--quick-start)
+- [Debugging](#debugging)
 - [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
   - [Use-case: Redis Enterprise for Kubernetes](#use-case-redis-enterprise-for-kubernetes)
   - [Use-case: FluxCD](#use-case-fluxcd)
@@ -18,7 +19,7 @@ re-transforms the Secret.
   - [Use-case: Dovecot](#use-case-dovecot)
 - [Cut a New Release](#cut-a-new-release)
 
-## Installation
+## Installation & Quick Start
 
 A Helm chart is available as well as container images. To install
 secret-transform, run:
@@ -27,6 +28,40 @@ secret-transform, run:
 helm upgrade --install secret-transform -n secret-transform --create-namespace \
   oci://ghcr.io/maelvls/charts/secret-transform
 ```
+
+Then, annotate a Secret:
+
+```bash
+kubectl annotate secret cert-1 cert-manager.io/secret-copy-tls.crt=tlsCert
+```
+
+You will see that the value for the key `tls.crt` has been copied to the
+`tlsCert` key.
+
+## Debugging
+
+If you want to know why one of the Secrets you have annotated hasn't been processed by secret-transform, you can run the following command:
+
+```bash
+kubectl events -n default --for secret/cert-1
+```
+
+If everything went well, you should see:
+
+```text
+LAST SEEN   TYPE     REASON      OBJECT          MESSAGE
+0s          Normal   CopiedKey   Secret/cert-1   Copied the contents of "tls.crt" into key "cert"
+```
+
+If you would like to check whether both values are the same, you can run:
+
+```bash
+diff -u \
+  <(kubectl get secret cert-1 -ojson | jq '.data."tls.crt"' -r | base64 -d | openssl x509 -text -noout) \
+  <(kubectl get secret cert-1 -ojson | jq '.data."cert"' -r | base64 -d | openssl x509 -text -noout)
+```
+
+If the output is empty, then secret-transform is working well.
 
 ## Renaming the key of a Secret
 
