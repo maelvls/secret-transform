@@ -68,7 +68,7 @@ func init() {
 }
 
 func main() {
-	log := log.Log.WithName("entrypoint")
+	log := log.Log.WithName("secret-transform")
 
 	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{})
 	if err != nil {
@@ -79,6 +79,7 @@ func main() {
 	rec := mgr.GetEventRecorderFor("secret-transform")
 	c, err := controller.New("secret-transform", mgr, controller.Options{
 		Reconciler: reconcile.Func(func(ctx context.Context, r reconcile.Request) (reconcile.Result, error) {
+			log = log.WithValues("secret_name", r.NamespacedName.Name, "namespace", r.NamespacedName.Namespace)
 			secret := corev1.Secret{}
 			err := mgr.GetClient().Get(ctx, r.NamespacedName, &secret)
 			switch {
@@ -97,17 +98,32 @@ func main() {
 
 			copyCACrtKey := secret.GetAnnotations()[secretSyncCACRTAnnotKey]
 			if copyCACrtKey != "" {
-				copyKey(ctx, rec, secret, "ca.crt", copyCACrtKey)
+				err = copyKey(secret, "ca.crt", copyCACrtKey)
+				if err != nil {
+					log.WithValues(err, "while copying")
+					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+					return reconcile.Result{}, nil
+				}
 			}
 
 			copyTLSCrtKey := secret.GetAnnotations()[secretSyncTLSCrtAnnotKey]
 			if copyTLSCrtKey != "" {
-				copyKey(ctx, rec, secret, "tls.crt", copyTLSCrtKey)
+				err = copyKey(secret, "tls.crt", copyTLSCrtKey)
+				if err != nil {
+					log.WithValues(err, "while copying")
+					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+					return reconcile.Result{}, nil
+				}
 			}
 
 			copyTLSKeyKey := secret.GetAnnotations()[secretSyncTLSKeyAnnotKey]
 			if copyTLSKeyKey != "" {
-				copyKey(ctx, rec, secret, "tls.key", copyTLSKeyKey)
+				copyKey(secret, "tls.key", copyTLSKeyKey)
+				if err != nil {
+					log.WithValues(err, "while copying")
+					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+					return reconcile.Result{}, nil
+				}
 			}
 
 			if reflect.DeepEqual(secret.Data, secretBefore.Data) {
@@ -120,16 +136,16 @@ func main() {
 			}
 
 			if transformTo != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s to the Secret data", tlsPEMDataKey)
+				rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s", tlsPEMDataKey)
 			}
 			if copyCACrtKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied key %s to the key %s in the Secret data", copyCACrtKey, "ca.crt")
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "ca.crt", copyCACrtKey)
 			}
 			if copyTLSCrtKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied key %s to the key %s in the Secret data", copyTLSCrtKey, "tls.crt")
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "tls.crt", copyTLSCrtKey)
 			}
 			if copyTLSKeyKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied key %s to the key %s in the Secret data", copyTLSKeyKey, "tls.key")
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "tls.key", copyTLSKeyKey)
 			}
 
 			return reconcile.Result{}, nil
@@ -193,21 +209,19 @@ func mergeCombinedPEM(ctx context.Context, rec record.EventRecorder, secret core
 	secret.Data[tlsPEMDataKey] = tlsPEMNew
 }
 
-// Only return an error when the error "retriable" i.e., retriying may fix the
-// issue (e.g. a network error or optimistic locking).
-func copyKey(ctx context.Context, rec record.EventRecorder, secret corev1.Secret, keyFrom string, keyTo string) (bool, reconcile.Result, error) {
+// The Secret is mutated. Returns true if the Secret was mutated, false if
+// nothing was changed. Returns an error if the key does not exist.
+func copyKey(secret corev1.Secret, keyFrom string, keyTo string) error {
 	caCrtOriginal, exists := secret.Data[keyFrom]
 	if !exists {
-		rec.Eventf(&secret, corev1.EventTypeWarning, "MissingCACrtKey", "Secret %s does not contain a '%s' data key", secret.Name, keyFrom)
-		return true, reconcile.Result{}, nil
+		return fmt.Errorf("the key %q does not exist", keyFrom)
 	}
 
 	caCrtCopy := secret.Data[keyTo]
 	if bytes.Compare(caCrtOriginal, caCrtCopy) == 0 {
-		return true, reconcile.Result{}, nil
+		return nil
 	}
 
 	secret.Data[keyTo] = secret.Data[keyFrom]
-
-	return false, reconcile.Result{}, nil
+	return nil
 }
