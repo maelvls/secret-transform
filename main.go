@@ -76,8 +76,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	rec := mgr.GetEventRecorderFor("secret-transformer")
-	c, err := controller.New("secret-transformer", mgr, controller.Options{
+	rec := mgr.GetEventRecorderFor("secret-transform")
+	c, err := controller.New("secret-transform", mgr, controller.Options{
 		Reconciler: reconcile.Func(func(ctx context.Context, r reconcile.Request) (reconcile.Result, error) {
 			secret := corev1.Secret{}
 			err := mgr.GetClient().Get(ctx, r.NamespacedName, &secret)
