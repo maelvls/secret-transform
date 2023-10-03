@@ -1,6 +1,8 @@
 # Secret Transform
 
-Copy and tranform the contents of your Kubernetes Secrets.
+Copy and tranform the contents of your Kubernetes Secrets that contain TLS key
+material. When a Secret is changed, secret-transform automatically re-copies or
+re-transforms the Secret.
 
 - [Installation](#installation)
 - [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
