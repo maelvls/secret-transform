@@ -38,11 +38,29 @@ import (
 )
 
 const (
-	secretAnnotKey           = "cert-manager.io/secret-transform"
+	// To combine `tls.crt` and `tls.key` into a single PEM, use the following
+	// annotation on a Secret:
+	//
+	//  cert-manager.io/secret-transform: "tls.pem"
+	//
+	// The contents of `tls.key` and `tls.crt` will be merged into a new key
+	// `tls.pem`. This key name isn't configurable.
+	secretAnnotKey = "cert-manager.io/secret-transform" // Values: "tls.pem"
+	tlsPEMDataKey  = "tls.pem"
+
+	// To copy an existing key to a new key, use one of the annotations below on
+	// a Secret:
+	//
+	//  cert-manager.io/secret-copy-ca.crt: "ca"
+	//  cert-manager.io/secret-copy-tls.crt: "cert"
+	//  cert-manager.io/secret-copy-tls.key: "key"
+	//
+	// In the first example, the contents of the `ca.crt` key will be copied to
+	// a new key `ca`, even when the Secret's `ca.crt` is updated. Each of the
+	// annotation values are configurable.
 	secretSyncCACRTAnnotKey  = "cert-manager.io/secret-copy-ca.crt"
 	secretSyncTLSCrtAnnotKey = "cert-manager.io/secret-copy-tls.crt"
 	secretSyncTLSKeyAnnotKey = "cert-manager.io/secret-copy-tls.key"
-	tlsPEMDataKey            = "tls.pem"
 )
 
 func init() {
