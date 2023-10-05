@@ -211,8 +211,12 @@ data:
 
 ## Combined PEM bundle
 
-> ⚠️ The combined PEM feature provided by this addon has been added to
-> cert-manager 1.7.
+> [!IMPORTANT]
+> The combined PEM feature provided by this addon has been added to
+> cert-manager 1.7 with the field `additionalOutputFormats: CombinedPEM`.
+> Since the feature is still in alpha (as of Sept 2023), you will need to use the feature
+> flag `--feature-gates=AdditionalCertificateOutputFormats=true`. You can read more in the cert-manager documentation page
+> [Additional Certificate Output Formats](https://cert-manager.io/docs/usage/certificate/#additional-certificate-output-formats).
 
 Another common request reported in the cert-manager issue
 [#843](https://github.com/jetstack/cert-manager/issues/843) is to create a PEM
