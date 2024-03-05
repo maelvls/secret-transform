@@ -4,6 +4,15 @@ metadata:
   name: {{ include "secret-transform.name" . }}
   namespace: {{ .Release.Namespace }}
 ---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: "{{ include "secret-transform.name" . }}"
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["list", "watch", "update"]
+---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -11,8 +20,9 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: "{{ include "secret-transform.name" . }}"
 subjects:
   - kind: ServiceAccount
     name: {{ include "secret-transform.name" . }}
     namespace: {{ .Release.Namespace }}
+---
