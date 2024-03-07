@@ -1,0 +1,28 @@
+{{- if and .Values.rbac.enabled (gt (len .Values.rbac.namespaces) 0) -}}
+{{- range $.Values.rbac.namespaces }}
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: "{{ include "secret-transform.name" $ }}"
+  namespace: {{ . | quote }}
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["list", "watch", "update"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: "{{ include "secret-transform.name" $ }}"
+  namespace: {{ . | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: "{{ include "secret-transform.name" $ }}"
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "secret-transform.name" $ }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+{{- end }}
