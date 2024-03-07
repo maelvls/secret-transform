@@ -282,6 +282,18 @@ Dfvp7OOGAN6dEOM4+qR9sdjoSYKEBpsr6GtPAQw4dy753ec5
 -----END CERTIFICATE-----
 ```
 
+<a id="use-case-kafka"/>
+
+## Use-case: Kafka and Passwordless Keystore
+
+Since [KIP-651](https://cwiki.apache.org/confluence/display/KAFKA/KIP-651+-+Support+PEM+format+for+SSL+certificates+and+private+key)
+
+```conf
+ssl.keystore.type=PEM
+ssl.keystore.location=keystore.pem
+ssl.key.password=hello
+```
+
 <a id="use-case-mongodb"/>
 
 ### Use-case: MongoDB
