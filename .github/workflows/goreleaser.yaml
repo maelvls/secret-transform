@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v4
         with:
-          go-version: "1.21.x"
+          go-version: "1.22.x"
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v3
       - uses: docker/login-action@v3
