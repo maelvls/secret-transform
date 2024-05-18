@@ -78,9 +78,9 @@ annotations:
 kind: Secret
 metadata:
   annotations:
-    cert-manager.io/secret-copy-ca.crt: caFile    # ✨ "ca.crt" to be renamed to "caFile"
-    cert-manager.io/secret-copy-tls.crt: certFile # ✨ "tls.crt" to be renamed to "certFile"
-    cert-manager.io/secret-copy-tls.key: keyFile  # ✨ "tls.key" to be renamed to "keyFile"
+    cert-manager.io/secret-copy-ca.crt: caFile              # ✨ "ca.crt" to be renamed to "caFile"
+    cert-manager.io/secret-copy-tls.crt: certFile           # ✨ "tls.crt" to be renamed to "certFile"
+    cert-manager.io/secret-copy-tls.key: keyFile            # ✨ "tls.key" to be renamed to "keyFile"
 stringData:
   tls.crt: <the PEM-encoded contents of the certificate>
   tls.key: <the PEM-encoded contents of the private key>
@@ -103,6 +103,79 @@ After adding the annotations, you will see the new keys appear in the Secret:
 +   certFile: <copied from tls.crt>
 +   keyFile: <copied from tls.key>
 +   caFile: <copied from ca.crt>
+```
+
+## Renaming of optional keystore keys
+
+cert-manager is able to optionally provide keystores in JKS or/and PKCS#12 format.
+Similar to renaming the default Keys you can use it to rename your keystore keys.
+
+**JKS:**
+
+```yaml
+kind: Secret
+metadata:
+  annotations:
+    cert-manager.io/secret-copy-keystore.jks: keystore      # ✨ "keystore.jks" to be renamed to "keystore"
+    cert-manager.io/secret-copy-truststore.jks: truststore  # ✨ "truststore.jks" to be renamed to "truststore"
+stringData:
+  tls.crt: <the PEM-encoded contents of the certificate>
+  tls.key: <the PEM-encoded contents of the private key>
+  ca.crt: <the PEM-encoded contents of the CA certificate>
+  keystore.jks: <keystore that holds the certificate and the private key>
+  truststore.jks: <truststore that holds the CA certificate>
+```
+
+After adding the annotations, you will see the new keys appear in the Secret:
+
+```diff
+ kind: Secret
+ metadata:
+   annotations:
+    cert-manager.io/secret-copy-keystore.jks: keystore
+    cert-manager.io/secret-copy-truststore.jks: truststore
+ data:
+    tls.crt: <the PEM-encoded contents of the certificate>
+    tls.key: <the PEM-encoded contents of the private key>
+    ca.crt: <the PEM-encoded contents of the CA certificate>
+    keystore.jks: <keystore that holds the certificate and the private key>
+    truststore.jks: <truststore that holds the CA certificate>
++   keystore: <copied from keystore.jks>
++   truststore: <copied from truststore.jks>
+```
+
+**PKCS#12:**
+
+```yaml
+kind: Secret
+metadata:
+  annotations:
+    cert-manager.io/secret-copy-keystore.p12: keystore      # ✨ "keystore.p12" to be renamed to "keystore"
+    cert-manager.io/secret-copy-truststore.p12: truststore  # ✨ "truststore.p12" to be renamed to "truststore"
+stringData:
+  tls.crt: <the PEM-encoded contents of the certificate>
+  tls.key: <the PEM-encoded contents of the private key>
+  ca.crt: <the PEM-encoded contents of the CA certificate>
+  keystore.p12: <keystore that holds the certificate and the private key>
+  truststore.p12: <truststore that holds the CA certificate>
+```
+
+After adding the annotations, you will see the new keys appear in the Secret:
+
+```diff
+ kind: Secret
+ metadata:
+   annotations:
+    cert-manager.io/secret-copy-keystore.p12: keystore
+    cert-manager.io/secret-copy-truststore.p12: truststore
+ data:
+    tls.crt: <the PEM-encoded contents of the certificate>
+    tls.key: <the PEM-encoded contents of the private key>
+    ca.crt: <the PEM-encoded contents of the CA certificate>
+    keystore.p12: <keystore that holds the certificate and the private key>
+    truststore.p12: <truststore that holds the CA certificate>
++   keystore: <copied from keystore.p12>
++   truststore: <copied from truststore.p12>
 ```
 
 ### Use-case: Redis Enterprise for Kubernetes

@@ -54,13 +54,21 @@ const (
 	//  cert-manager.io/secret-copy-ca.crt: "ca"
 	//  cert-manager.io/secret-copy-tls.crt: "cert"
 	//  cert-manager.io/secret-copy-tls.key: "key"
+	//  cert-manager.io/secret-copy-keystore.jks: "keystore"
+	//  cert-manager.io/secret-copy-truststore.jks: "truststore"
+	//  cert-manager.io/secret-copy-keystore.p12: "keystore"
+	//  cert-manager.io/secret-copy-truststore.p12: "truststore"
 	//
 	// In the first example, the contents of the `ca.crt` key will be copied to
 	// a new key `ca`, even when the Secret's `ca.crt` is updated. Each of the
 	// annotation values are configurable.
-	secretSyncCACRTAnnotKey  = "cert-manager.io/secret-copy-ca.crt"
-	secretSyncTLSCrtAnnotKey = "cert-manager.io/secret-copy-tls.crt"
-	secretSyncTLSKeyAnnotKey = "cert-manager.io/secret-copy-tls.key"
+	secretSyncCACRTAnnotKey         = "cert-manager.io/secret-copy-ca.crt"
+	secretSyncTLSCrtAnnotKey        = "cert-manager.io/secret-copy-tls.crt"
+	secretSyncTLSKeyAnnotKey        = "cert-manager.io/secret-copy-tls.key"
+	secretSyncKeystoreJKSAnnotKey   = "cert-manager.io/secret-copy-keystore.jks"
+	secretSyncTruststoreJKSAnnotKey = "cert-manager.io/secret-copy-truststore.jks"
+	secretSyncKeystoreP12AnnotKey   = "cert-manager.io/secret-copy-keystore.p12"
+	secretSyncTruststoreP12AnnotKey = "cert-manager.io/secret-copy-truststore.p12"
 )
 
 func init() {
@@ -126,6 +134,46 @@ func main() {
 				}
 			}
 
+			copyKeystoreJKSKey := secret.GetAnnotations()[secretSyncKeystoreJKSAnnotKey]
+			if copyKeystoreJKSKey != "" {
+				copyKey(secret, "keystore.jks", copyKeystoreJKSKey)
+				if err != nil {
+					log.WithValues(err, "while copying")
+					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+					return reconcile.Result{}, nil
+				}
+			}
+
+			copyTruststoreJKSKey := secret.GetAnnotations()[secretSyncTruststoreJKSAnnotKey]
+			if copyTruststoreJKSKey != "" {
+				copyKey(secret, "truststore.jks", copyTruststoreJKSKey)
+				if err != nil {
+					log.WithValues(err, "while copying")
+					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+					return reconcile.Result{}, nil
+				}
+			}
+
+			copyKeystoreP12Key := secret.GetAnnotations()[secretSyncKeystoreP12AnnotKey]
+			if copyKeystoreP12Key != "" {
+				copyKey(secret, "keystore.p12", copyKeystoreP12Key)
+				if err != nil {
+					log.WithValues(err, "while copying")
+					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+					return reconcile.Result{}, nil
+				}
+			}
+
+			copyTruststoreP12Key := secret.GetAnnotations()[secretSyncTruststoreP12AnnotKey]
+			if copyTruststoreP12Key != "" {
+				copyKey(secret, "truststore.p12", copyTruststoreP12Key)
+				if err != nil {
+					log.WithValues(err, "while copying")
+					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+					return reconcile.Result{}, nil
+				}
+			}
+
 			if reflect.DeepEqual(secret.Data, secretBefore.Data) {
 				return reconcile.Result{}, nil
 			}
@@ -147,6 +195,18 @@ func main() {
 			if copyTLSKeyKey != "" {
 				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "tls.key", copyTLSKeyKey)
 			}
+			if copyKeystoreJKSKey != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "keystore.jks", copyKeystoreJKSKey)
+			}
+			if copyTruststoreJKSKey != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "truststore.jks", copyTruststoreJKSKey)
+			}
+			if copyKeystoreP12Key != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "keystore.p12", copyKeystoreP12Key)
+			}
+			if copyTruststoreP12Key != "" {
+				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "truststore.p12", copyTruststoreP12Key)
+			}
 
 			return reconcile.Result{}, nil
 		}),
@@ -163,7 +223,11 @@ func main() {
 		if o.GetAnnotations()[secretAnnotKey] == "" &&
 			o.GetAnnotations()[secretSyncCACRTAnnotKey] == "" &&
 			o.GetAnnotations()[secretSyncTLSCrtAnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncTLSKeyAnnotKey] == "" {
+			o.GetAnnotations()[secretSyncTLSKeyAnnotKey] == "" &&
+			o.GetAnnotations()[secretSyncKeystoreJKSAnnotKey] == "" &&
+			o.GetAnnotations()[secretSyncTruststoreJKSAnnotKey] == "" &&
+			o.GetAnnotations()[secretSyncKeystoreP12AnnotKey] == "" &&
+			o.GetAnnotations()[secretSyncTruststoreP12AnnotKey] == "" {
 			return nil
 		}
 
