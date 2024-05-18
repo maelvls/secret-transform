@@ -78,9 +78,9 @@ annotations:
 kind: Secret
 metadata:
   annotations:
-    cert-manager.io/secret-copy-ca.crt: caFile      # ✨ "ca.crt" to be renamed to "caFile"
-    cert-manager.io/secret-copy-tls.crt: certFile   # ✨ "tls.crt" to be renamed to "certFile"
-    cert-manager.io/secret-copy-tls.key: keyFile    # ✨ "tls.key" to be renamed to "keyFile"
+    cert-manager.io/secret-copy-ca.crt: caFile    # ✨ "ca.crt" to be renamed to "caFile"
+    cert-manager.io/secret-copy-tls.crt: certFile # ✨ "tls.crt" to be renamed to "certFile"
+    cert-manager.io/secret-copy-tls.key: keyFile  # ✨ "tls.key" to be renamed to "keyFile"
 stringData:
   tls.crt: <the PEM-encoded contents of the certificate>
   tls.key: <the PEM-encoded contents of the private key>
