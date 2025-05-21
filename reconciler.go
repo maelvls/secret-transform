@@ -56,7 +56,7 @@ const (
 // Handles the "cert-manager.io/secret-transform" annotation. Mutates the
 // Secret's data.
 func mergeCombinedPEM(rec record.EventRecorder, secret *corev1.Secret) {
-	transformTo := secret.GetAnnotations()[secretAnnotKey]
+	transformTo := getAnnotValue(secret.GetAnnotations(), secretAnnotKey)
 	if transformTo != tlsPEMDataKey {
 		rec.Eventf(secret, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", transformTo, secretAnnotKey)
 		return
@@ -100,6 +100,19 @@ func copyKey(secret corev1.Secret, keyFrom string, keyTo string) error {
 	return nil
 }
 
+func getAnnotValue(annots map[string]string, annotationKey string) (value string) {
+	if annots == nil {
+		return ""
+	}
+
+	value, found := annots[annotationKey]
+	if found && value != "" {
+		return value
+	}
+
+	return ""
+}
+
 func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 	log := log.Log.WithName("secret-transform")
 	return func(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -115,12 +128,12 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		secretBefore := secret.DeepCopy()
 
-		transformTo := secret.GetAnnotations()[secretAnnotKey]
+		transformTo := getAnnotValue(secret.GetAnnotations(), secretAnnotKey)
 		if transformTo != "" {
 			mergeCombinedPEM(rec, &secret)
 		}
 
-		copyCACrtKey := secret.GetAnnotations()[secretSyncCACRTAnnotKey]
+		copyCACrtKey := getAnnotValue(secret.GetAnnotations(), secretSyncCACRTAnnotKey)
 		if copyCACrtKey != "" {
 			err := copyKey(secret, "ca.crt", copyCACrtKey)
 			if err != nil {
@@ -130,7 +143,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTLSCrtKey := secret.GetAnnotations()[secretSyncTLSCrtAnnotKey]
+		copyTLSCrtKey := getAnnotValue(secret.GetAnnotations(), secretSyncTLSCrtAnnotKey)
 		if copyTLSCrtKey != "" {
 			err := copyKey(secret, "tls.crt", copyTLSCrtKey)
 			if err != nil {
@@ -140,7 +153,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTLSKeyKey := secret.GetAnnotations()[secretSyncTLSKeyAnnotKey]
+		copyTLSKeyKey := getAnnotValue(secret.GetAnnotations(), secretSyncTLSKeyAnnotKey)
 		if copyTLSKeyKey != "" {
 			err := copyKey(secret, "tls.key", copyTLSKeyKey)
 			if err != nil {
@@ -150,7 +163,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyKeystoreJKSKey := secret.GetAnnotations()[secretSyncKeystoreJKSAnnotKey]
+		copyKeystoreJKSKey := getAnnotValue(secret.GetAnnotations(), secretSyncKeystoreJKSAnnotKey)
 		if copyKeystoreJKSKey != "" {
 			err := copyKey(secret, "keystore.jks", copyKeystoreJKSKey)
 			if err != nil {
@@ -160,7 +173,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTruststoreJKSKey := secret.GetAnnotations()[secretSyncTruststoreJKSAnnotKey]
+		copyTruststoreJKSKey := getAnnotValue(secret.GetAnnotations(), secretSyncTruststoreJKSAnnotKey)
 		if copyTruststoreJKSKey != "" {
 			err := copyKey(secret, "truststore.jks", copyTruststoreJKSKey)
 			if err != nil {
@@ -170,7 +183,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyKeystoreP12Key := secret.GetAnnotations()[secretSyncKeystoreP12AnnotKey]
+		copyKeystoreP12Key := getAnnotValue(secret.GetAnnotations(), secretSyncKeystoreP12AnnotKey)
 		if copyKeystoreP12Key != "" {
 			err := copyKey(secret, "keystore.p12", copyKeystoreP12Key)
 			if err != nil {
@@ -180,7 +193,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTruststoreP12Key := secret.GetAnnotations()[secretSyncTruststoreP12AnnotKey]
+		copyTruststoreP12Key := getAnnotValue(secret.GetAnnotations(), secretSyncTruststoreP12AnnotKey)
 		if copyTruststoreP12Key != "" {
 			err := copyKey(secret, "truststore.p12", copyTruststoreP12Key)
 			if err != nil {
@@ -234,14 +247,14 @@ func ShouldReconcileSecret(annotations map[string]string) bool {
 		return false
 	}
 
-	return annotations[secretAnnotKey] != "" ||
-		annotations[secretSyncCACRTAnnotKey] != "" ||
-		annotations[secretSyncTLSCrtAnnotKey] != "" ||
-		annotations[secretSyncTLSKeyAnnotKey] != "" ||
-		annotations[secretSyncKeystoreJKSAnnotKey] != "" ||
-		annotations[secretSyncTruststoreJKSAnnotKey] != "" ||
-		annotations[secretSyncKeystoreP12AnnotKey] != "" ||
-		annotations[secretSyncTruststoreP12AnnotKey] != ""
+	return getAnnotValue(annotations, secretAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncCACRTAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTLSCrtAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTLSKeyAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncKeystoreJKSAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTruststoreJKSAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncKeystoreP12AnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTruststoreP12AnnotKey) != ""
 }
 
 // setupReconciler sets up the controller with the Manager. This is extracted as
