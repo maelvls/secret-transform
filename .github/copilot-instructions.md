@@ -16,3 +16,37 @@ func TestCopyKey(t *testing.T) {
     })
 }
 ```
+
+Even better, use the following kinda-table-driven approach:
+
+```go
+type TestCopyKey_tc struct {
+    givenInput string
+    expectErr  string
+}
+func TestCopyKey_run(text TestCopyKey_tc) func(t *testing.T) {
+    return func(t *testing.T) {
+        // Test logic here
+        if text.expectErr != "" {
+            assert.EqualError(t, text.expectErr, err)
+            return
+        }
+        assert.NoError(t, err)
+    }
+}
+```
+
+Then, the t.Run subtests can be called like this:
+
+```go
+func TestCopyKey(t *testing.T) {
+    t.Run("happy case", TestCopyKey_run(TestCopyKey_tc{
+        givenInput: "some input",
+        expectErr:  "",
+    }))
+    t.Run("show an error when missing source key", TestCopyKey_run(TestCopyKey_tc{
+        givenInput: "missing input",
+        expectErr:  "source key not found",
+    }))
+}
+```
