@@ -1,16 +1,3 @@
-/*
-Copyright 2018 The Kubernetes Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package main
 
 import (
@@ -75,176 +62,198 @@ func init() {
 	log.SetLogger(zap.New())
 }
 
-func main() {
+func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 	log := log.Log.WithName("secret-transform")
+	return func(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+		log := log.WithValues("secret_name", req.NamespacedName.Name, "namespace", req.NamespacedName.Namespace)
+		secret := corev1.Secret{}
+		err := client.Get(ctx, req.NamespacedName, &secret)
+		switch {
+		case k8serrors.IsNotFound(err):
+			return reconcile.Result{}, nil
+		case err != nil:
+			return reconcile.Result{}, err
+		}
 
-	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{})
-	if err != nil {
-		log.Error(err, "unable to set up overall controller manager")
-		os.Exit(1)
+		secretBefore := secret.DeepCopy()
+
+		transformTo := secret.GetAnnotations()[secretAnnotKey]
+		if transformTo != "" {
+			mergeCombinedPEM(rec, secret)
+		}
+
+		copyCACrtKey := secret.GetAnnotations()[secretSyncCACRTAnnotKey]
+		if copyCACrtKey != "" {
+			err = copyKey(secret, "ca.crt", copyCACrtKey)
+			if err != nil {
+				log.WithValues(err, "while copying")
+				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+				return reconcile.Result{}, nil
+			}
+		}
+
+		copyTLSCrtKey := secret.GetAnnotations()[secretSyncTLSCrtAnnotKey]
+		if copyTLSCrtKey != "" {
+			err = copyKey(secret, "tls.crt", copyTLSCrtKey)
+			if err != nil {
+				log.WithValues(err, "while copying")
+				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+				return reconcile.Result{}, nil
+			}
+		}
+
+		copyTLSKeyKey := secret.GetAnnotations()[secretSyncTLSKeyAnnotKey]
+		if copyTLSKeyKey != "" {
+			copyKey(secret, "tls.key", copyTLSKeyKey)
+			if err != nil {
+				log.WithValues(err, "while copying")
+				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+				return reconcile.Result{}, nil
+			}
+		}
+
+		copyKeystoreJKSKey := secret.GetAnnotations()[secretSyncKeystoreJKSAnnotKey]
+		if copyKeystoreJKSKey != "" {
+			copyKey(secret, "keystore.jks", copyKeystoreJKSKey)
+			if err != nil {
+				log.WithValues(err, "while copying")
+				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+				return reconcile.Result{}, nil
+			}
+		}
+
+		copyTruststoreJKSKey := secret.GetAnnotations()[secretSyncTruststoreJKSAnnotKey]
+		if copyTruststoreJKSKey != "" {
+			copyKey(secret, "truststore.jks", copyTruststoreJKSKey)
+			if err != nil {
+				log.WithValues(err, "while copying")
+				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+				return reconcile.Result{}, nil
+			}
+		}
+
+		copyKeystoreP12Key := secret.GetAnnotations()[secretSyncKeystoreP12AnnotKey]
+		if copyKeystoreP12Key != "" {
+			copyKey(secret, "keystore.p12", copyKeystoreP12Key)
+			if err != nil {
+				log.WithValues(err, "while copying")
+				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+				return reconcile.Result{}, nil
+			}
+		}
+
+		copyTruststoreP12Key := secret.GetAnnotations()[secretSyncTruststoreP12AnnotKey]
+		if copyTruststoreP12Key != "" {
+			copyKey(secret, "truststore.p12", copyTruststoreP12Key)
+			if err != nil {
+				log.WithValues(err, "while copying")
+				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
+				return reconcile.Result{}, nil
+			}
+		}
+
+		if reflect.DeepEqual(secret.Data, secretBefore.Data) {
+			return reconcile.Result{}, nil
+		}
+
+		err = client.Update(ctx, &secret)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if transformTo != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s", tlsPEMDataKey)
+		}
+		if copyCACrtKey != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "ca.crt", copyCACrtKey)
+		}
+		if copyTLSCrtKey != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "tls.crt", copyTLSCrtKey)
+		}
+		if copyTLSKeyKey != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "tls.key", copyTLSKeyKey)
+		}
+		if copyKeystoreJKSKey != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "keystore.jks", copyKeystoreJKSKey)
+		}
+		if copyTruststoreJKSKey != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "truststore.jks", copyTruststoreJKSKey)
+		}
+		if copyKeystoreP12Key != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "keystore.p12", copyKeystoreP12Key)
+		}
+		if copyTruststoreP12Key != "" {
+			rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "truststore.p12", copyTruststoreP12Key)
+		}
+
+		return reconcile.Result{}, nil
+	}
+}
+
+// ShouldReconcileSecret returns true if the secret has any of the annotations that we're interested in
+func ShouldReconcileSecret(annotations map[string]string) bool {
+	if annotations == nil {
+		return false
 	}
 
+	return annotations[secretAnnotKey] != "" ||
+		annotations[secretSyncCACRTAnnotKey] != "" ||
+		annotations[secretSyncTLSCrtAnnotKey] != "" ||
+		annotations[secretSyncTLSKeyAnnotKey] != "" ||
+		annotations[secretSyncKeystoreJKSAnnotKey] != "" ||
+		annotations[secretSyncTruststoreJKSAnnotKey] != "" ||
+		annotations[secretSyncKeystoreP12AnnotKey] != "" ||
+		annotations[secretSyncTruststoreP12AnnotKey] != ""
+}
+
+// setupReconciler sets up the controller with the Manager. This is extracted as
+// a separate function to make it testable.
+func setupReconciler(mgr manager.Manager) error {
 	rec := mgr.GetEventRecorderFor("secret-transform")
+	reconciler := Reconciler(mgr.GetClient(), rec)
+
 	c, err := controller.New("secret-transform", mgr, controller.Options{
-		Reconciler: reconcile.Func(func(ctx context.Context, r reconcile.Request) (reconcile.Result, error) {
-			log = log.WithValues("secret_name", r.NamespacedName.Name, "namespace", r.NamespacedName.Namespace)
-			secret := corev1.Secret{}
-			err := mgr.GetClient().Get(ctx, r.NamespacedName, &secret)
-			switch {
-			case k8serrors.IsNotFound(err):
-				return reconcile.Result{}, nil
-			case err != nil:
-				return reconcile.Result{}, err
-			}
-
-			secretBefore := secret.DeepCopy()
-
-			transformTo := secret.GetAnnotations()[secretAnnotKey]
-			if transformTo != "" {
-				mergeCombinedPEM(ctx, rec, secret)
-			}
-
-			copyCACrtKey := secret.GetAnnotations()[secretSyncCACRTAnnotKey]
-			if copyCACrtKey != "" {
-				err = copyKey(secret, "ca.crt", copyCACrtKey)
-				if err != nil {
-					log.WithValues(err, "while copying")
-					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
-					return reconcile.Result{}, nil
-				}
-			}
-
-			copyTLSCrtKey := secret.GetAnnotations()[secretSyncTLSCrtAnnotKey]
-			if copyTLSCrtKey != "" {
-				err = copyKey(secret, "tls.crt", copyTLSCrtKey)
-				if err != nil {
-					log.WithValues(err, "while copying")
-					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
-					return reconcile.Result{}, nil
-				}
-			}
-
-			copyTLSKeyKey := secret.GetAnnotations()[secretSyncTLSKeyAnnotKey]
-			if copyTLSKeyKey != "" {
-				copyKey(secret, "tls.key", copyTLSKeyKey)
-				if err != nil {
-					log.WithValues(err, "while copying")
-					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
-					return reconcile.Result{}, nil
-				}
-			}
-
-			copyKeystoreJKSKey := secret.GetAnnotations()[secretSyncKeystoreJKSAnnotKey]
-			if copyKeystoreJKSKey != "" {
-				copyKey(secret, "keystore.jks", copyKeystoreJKSKey)
-				if err != nil {
-					log.WithValues(err, "while copying")
-					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
-					return reconcile.Result{}, nil
-				}
-			}
-
-			copyTruststoreJKSKey := secret.GetAnnotations()[secretSyncTruststoreJKSAnnotKey]
-			if copyTruststoreJKSKey != "" {
-				copyKey(secret, "truststore.jks", copyTruststoreJKSKey)
-				if err != nil {
-					log.WithValues(err, "while copying")
-					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
-					return reconcile.Result{}, nil
-				}
-			}
-
-			copyKeystoreP12Key := secret.GetAnnotations()[secretSyncKeystoreP12AnnotKey]
-			if copyKeystoreP12Key != "" {
-				copyKey(secret, "keystore.p12", copyKeystoreP12Key)
-				if err != nil {
-					log.WithValues(err, "while copying")
-					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
-					return reconcile.Result{}, nil
-				}
-			}
-
-			copyTruststoreP12Key := secret.GetAnnotations()[secretSyncTruststoreP12AnnotKey]
-			if copyTruststoreP12Key != "" {
-				copyKey(secret, "truststore.p12", copyTruststoreP12Key)
-				if err != nil {
-					log.WithValues(err, "while copying")
-					rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
-					return reconcile.Result{}, nil
-				}
-			}
-
-			if reflect.DeepEqual(secret.Data, secretBefore.Data) {
-				return reconcile.Result{}, nil
-			}
-
-			err = mgr.GetClient().Update(ctx, &secret)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-
-			if transformTo != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "Transformed", "Added key %s", tlsPEMDataKey)
-			}
-			if copyCACrtKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "ca.crt", copyCACrtKey)
-			}
-			if copyTLSCrtKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "tls.crt", copyTLSCrtKey)
-			}
-			if copyTLSKeyKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "tls.key", copyTLSKeyKey)
-			}
-			if copyKeystoreJKSKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "keystore.jks", copyKeystoreJKSKey)
-			}
-			if copyTruststoreJKSKey != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "truststore.jks", copyTruststoreJKSKey)
-			}
-			if copyKeystoreP12Key != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "keystore.p12", copyKeystoreP12Key)
-			}
-			if copyTruststoreP12Key != "" {
-				rec.Eventf(&secret, corev1.EventTypeNormal, "CopiedKey", "Copied the contents of %q into key %q", "truststore.p12", copyTruststoreP12Key)
-			}
-
-			return reconcile.Result{}, nil
-		}),
+		Reconciler: reconciler,
 	})
 	if err != nil {
-		log.Error(err, "unable to set up individual controller")
-		os.Exit(1)
+		return fmt.Errorf("unable to set up individual controller: %w", err)
 	}
 
 	if err := c.Watch(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
-		if o.GetAnnotations() == nil {
-			return nil
-		}
-		if o.GetAnnotations()[secretAnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncCACRTAnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncTLSCrtAnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncTLSKeyAnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncKeystoreJKSAnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncTruststoreJKSAnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncKeystoreP12AnnotKey] == "" &&
-			o.GetAnnotations()[secretSyncTruststoreP12AnnotKey] == "" {
+		if !ShouldReconcileSecret(o.GetAnnotations()) {
 			return nil
 		}
 
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: o.GetNamespace(), Name: o.GetName()}}}
 	})); err != nil {
-		log.Error(err, "unable to watch Secrets")
+		return fmt.Errorf("unable to watch Secrets: %w", err)
+	}
+
+	return nil
+}
+
+func main() {
+	logger := log.Log.WithName("secret-transform")
+
+	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{})
+	if err != nil {
+		logger.Error(err, "unable to set up overall controller manager")
 		os.Exit(1)
 	}
 
-	log.Info("starting manager")
+	if err := setupReconciler(mgr); err != nil {
+		logger.Error(err, "problem setting up controller")
+		os.Exit(1)
+	}
+
+	logger.Info("starting manager")
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		log.Error(err, "unable to run manager")
+		logger.Error(err, "unable to run manager")
 		os.Exit(1)
 	}
 }
 
-func mergeCombinedPEM(ctx context.Context, rec record.EventRecorder, secret corev1.Secret) {
+func mergeCombinedPEM(rec record.EventRecorder, secret corev1.Secret) {
 	transformTo := secret.GetAnnotations()[secretAnnotKey]
 
 	if transformTo != tlsPEMDataKey {
