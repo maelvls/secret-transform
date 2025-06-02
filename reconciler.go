@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,37 +21,52 @@ import (
 )
 
 const (
+
 	// To combine `tls.crt` and `tls.key` into a single PEM, use the following
 	// annotation on a Secret:
 	//
-	//  cert-manager.io/secret-transform: "tls.pem"
+	//  secret-transform/secret-transform: "tls.pem"
 	//
 	// The contents of `tls.key` and `tls.crt` will be merged into a new key
 	// `tls.pem`. This key name isn't configurable.
-	secretAnnotKey = "cert-manager.io/secret-transform" // Values: "tls.pem"
-	tlsPEMDataKey  = "tls.pem"
+	secretAnnotKey    = "cert-manager.io/secret-transform"  // Values: "tls.pem"
+	newSecretAnnotKey = "secret-transform/secret-transform" // Values: "tls.pem"
+
+	tlsPEMDataKey = "tls.pem"
 
 	// To copy an existing key to a new key, use one of the annotations below on
 	// a Secret:
 	//
-	//  cert-manager.io/secret-copy-ca.crt: "ca"
-	//  cert-manager.io/secret-copy-tls.crt: "cert"
-	//  cert-manager.io/secret-copy-tls.key: "key"
-	//  cert-manager.io/secret-copy-keystore.jks: "keystore"
-	//  cert-manager.io/secret-copy-truststore.jks: "truststore"
-	//  cert-manager.io/secret-copy-keystore.p12: "keystore"
-	//  cert-manager.io/secret-copy-truststore.p12: "truststore"
+	//  secret-transform/secret-copy-ca.crt: "ca"
+	//  secret-transform/secret-copy-tls.crt: "cert"
+	//  secret-transform/secret-copy-tls.key: "key"
+	//  secret-transform/secret-copy-keystore.jks: "keystore"
+	//  secret-transform/secret-copy-truststore.jks: "truststore"
+	//  secret-transform/secret-copy-keystore.p12: "keystore"
+	//  secret-transform/secret-copy-truststore.p12: "truststore"
 	//
 	// In the first example, the contents of the `ca.crt` key will be copied to
 	// a new key `ca`, even when the Secret's `ca.crt` is updated. Each of the
 	// annotation values are configurable.
-	secretSyncCACRTAnnotKey         = "cert-manager.io/secret-copy-ca.crt"
-	secretSyncTLSCrtAnnotKey        = "cert-manager.io/secret-copy-tls.crt"
-	secretSyncTLSKeyAnnotKey        = "cert-manager.io/secret-copy-tls.key"
-	secretSyncKeystoreJKSAnnotKey   = "cert-manager.io/secret-copy-keystore.jks"
-	secretSyncTruststoreJKSAnnotKey = "cert-manager.io/secret-copy-truststore.jks"
-	secretSyncKeystoreP12AnnotKey   = "cert-manager.io/secret-copy-keystore.p12"
-	secretSyncTruststoreP12AnnotKey = "cert-manager.io/secret-copy-truststore.p12"
+	secretSyncCACRTAnnotKey         = "secret-transform/secret-copy-ca.crt"
+	secretSyncTLSCrtAnnotKey        = "secret-transform/secret-copy-tls.crt"
+	secretSyncTLSKeyAnnotKey        = "secret-transform/secret-copy-tls.key"
+	secretSyncKeystoreJKSAnnotKey   = "secret-transform/secret-copy-keystore.jks"
+	secretSyncTruststoreJKSAnnotKey = "secret-transform/secret-copy-truststore.jks"
+	secretSyncKeystoreP12AnnotKey   = "secret-transform/secret-copy-keystore.p12"
+	secretSyncTruststoreP12AnnotKey = "secret-transform/secret-copy-truststore.p12"
+
+	// Initially, the project started with annotations starting with
+	// cert-manager.io/*, which caused issues. These annotations are kept for
+	// backwards compatibility.
+	// https://github.com/maelvls/secret-transform/issues/11
+	oldSecretSyncCACRTAnnotKey         = "cert-manager.io/secret-copy-ca.crt"
+	oldSecretSyncTLSCrtAnnotKey        = "cert-manager.io/secret-copy-tls.crt"
+	oldSecretSyncTLSKeyAnnotKey        = "cert-manager.io/secret-copy-tls.key"
+	oldSecretSyncKeystoreJKSAnnotKey   = "cert-manager.io/secret-copy-keystore.jks"
+	oldSecretSyncTruststoreJKSAnnotKey = "cert-manager.io/secret-copy-truststore.jks"
+	oldSecretSyncKeystoreP12AnnotKey   = "cert-manager.io/secret-copy-keystore.p12"
+	oldSecretSyncTruststoreP12AnnotKey = "cert-manager.io/secret-copy-truststore.p12"
 )
 
 // Handles the "cert-manager.io/secret-transform" annotation. Mutates the
@@ -106,6 +122,17 @@ func getAnnotValue(annots map[string]string, annotationKey string) (value string
 	}
 
 	value, found := annots[annotationKey]
+	if found && value != "" {
+		return value
+	}
+
+	// Replace cert-manager.io/ with secret-transform/. This is because the
+	// project started with annotations starting with cert-manager.io/*, which
+	// caused issues: https://github.com/maelvls/secret-transform/issues/11. You
+	// can still use the cert-manager.io/* annotsations for backwards
+	// compatibility.
+	annotationKey = strings.Replace(annotationKey, "secret-transform/", "cert-manager.io/", 1)
+	value, found = annots[annotationKey]
 	if found && value != "" {
 		return value
 	}
