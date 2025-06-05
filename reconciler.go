@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,43 +21,58 @@ import (
 )
 
 const (
+
 	// To combine `tls.crt` and `tls.key` into a single PEM, use the following
 	// annotation on a Secret:
 	//
-	//  cert-manager.io/secret-transform: "tls.pem"
+	//  secret-transform/secret-transform: "tls.pem"
 	//
 	// The contents of `tls.key` and `tls.crt` will be merged into a new key
 	// `tls.pem`. This key name isn't configurable.
-	secretAnnotKey = "cert-manager.io/secret-transform" // Values: "tls.pem"
-	tlsPEMDataKey  = "tls.pem"
+	secretAnnotKey    = "cert-manager.io/secret-transform"  // Values: "tls.pem"
+	newSecretAnnotKey = "secret-transform/secret-transform" // Values: "tls.pem"
+
+	tlsPEMDataKey = "tls.pem"
 
 	// To copy an existing key to a new key, use one of the annotations below on
 	// a Secret:
 	//
-	//  cert-manager.io/secret-copy-ca.crt: "ca"
-	//  cert-manager.io/secret-copy-tls.crt: "cert"
-	//  cert-manager.io/secret-copy-tls.key: "key"
-	//  cert-manager.io/secret-copy-keystore.jks: "keystore"
-	//  cert-manager.io/secret-copy-truststore.jks: "truststore"
-	//  cert-manager.io/secret-copy-keystore.p12: "keystore"
-	//  cert-manager.io/secret-copy-truststore.p12: "truststore"
+	//  secret-transform/secret-copy-ca.crt: "ca"
+	//  secret-transform/secret-copy-tls.crt: "cert"
+	//  secret-transform/secret-copy-tls.key: "key"
+	//  secret-transform/secret-copy-keystore.jks: "keystore"
+	//  secret-transform/secret-copy-truststore.jks: "truststore"
+	//  secret-transform/secret-copy-keystore.p12: "keystore"
+	//  secret-transform/secret-copy-truststore.p12: "truststore"
 	//
 	// In the first example, the contents of the `ca.crt` key will be copied to
 	// a new key `ca`, even when the Secret's `ca.crt` is updated. Each of the
 	// annotation values are configurable.
-	secretSyncCACRTAnnotKey         = "cert-manager.io/secret-copy-ca.crt"
-	secretSyncTLSCrtAnnotKey        = "cert-manager.io/secret-copy-tls.crt"
-	secretSyncTLSKeyAnnotKey        = "cert-manager.io/secret-copy-tls.key"
-	secretSyncKeystoreJKSAnnotKey   = "cert-manager.io/secret-copy-keystore.jks"
-	secretSyncTruststoreJKSAnnotKey = "cert-manager.io/secret-copy-truststore.jks"
-	secretSyncKeystoreP12AnnotKey   = "cert-manager.io/secret-copy-keystore.p12"
-	secretSyncTruststoreP12AnnotKey = "cert-manager.io/secret-copy-truststore.p12"
+	secretSyncCACRTAnnotKey         = "secret-transform/secret-copy-ca.crt"
+	secretSyncTLSCrtAnnotKey        = "secret-transform/secret-copy-tls.crt"
+	secretSyncTLSKeyAnnotKey        = "secret-transform/secret-copy-tls.key"
+	secretSyncKeystoreJKSAnnotKey   = "secret-transform/secret-copy-keystore.jks"
+	secretSyncTruststoreJKSAnnotKey = "secret-transform/secret-copy-truststore.jks"
+	secretSyncKeystoreP12AnnotKey   = "secret-transform/secret-copy-keystore.p12"
+	secretSyncTruststoreP12AnnotKey = "secret-transform/secret-copy-truststore.p12"
+
+	// Initially, the project started with annotations starting with
+	// cert-manager.io/*, which caused issues. These annotations are kept for
+	// backwards compatibility.
+	// https://github.com/maelvls/secret-transform/issues/11
+	oldSecretSyncCACRTAnnotKey         = "cert-manager.io/secret-copy-ca.crt"
+	oldSecretSyncTLSCrtAnnotKey        = "cert-manager.io/secret-copy-tls.crt"
+	oldSecretSyncTLSKeyAnnotKey        = "cert-manager.io/secret-copy-tls.key"
+	oldSecretSyncKeystoreJKSAnnotKey   = "cert-manager.io/secret-copy-keystore.jks"
+	oldSecretSyncTruststoreJKSAnnotKey = "cert-manager.io/secret-copy-truststore.jks"
+	oldSecretSyncKeystoreP12AnnotKey   = "cert-manager.io/secret-copy-keystore.p12"
+	oldSecretSyncTruststoreP12AnnotKey = "cert-manager.io/secret-copy-truststore.p12"
 )
 
 // Handles the "cert-manager.io/secret-transform" annotation. Mutates the
 // Secret's data.
 func mergeCombinedPEM(rec record.EventRecorder, secret *corev1.Secret) {
-	transformTo := secret.GetAnnotations()[secretAnnotKey]
+	transformTo := getAnnotValue(secret.GetAnnotations(), secretAnnotKey)
 	if transformTo != tlsPEMDataKey {
 		rec.Eventf(secret, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", transformTo, secretAnnotKey)
 		return
@@ -100,6 +116,30 @@ func copyKey(secret corev1.Secret, keyFrom string, keyTo string) error {
 	return nil
 }
 
+func getAnnotValue(annots map[string]string, annotationKey string) (value string) {
+	if annots == nil {
+		return ""
+	}
+
+	value, found := annots[annotationKey]
+	if found && value != "" {
+		return value
+	}
+
+	// Replace cert-manager.io/ with secret-transform/. This is because the
+	// project started with annotations starting with cert-manager.io/*, which
+	// caused issues: https://github.com/maelvls/secret-transform/issues/11. You
+	// can still use the cert-manager.io/* annotsations for backwards
+	// compatibility.
+	annotationKey = strings.Replace(annotationKey, "secret-transform/", "cert-manager.io/", 1)
+	value, found = annots[annotationKey]
+	if found && value != "" {
+		return value
+	}
+
+	return ""
+}
+
 func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 	log := log.Log.WithName("secret-transform")
 	return func(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -115,12 +155,12 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		secretBefore := secret.DeepCopy()
 
-		transformTo := secret.GetAnnotations()[secretAnnotKey]
+		transformTo := getAnnotValue(secret.GetAnnotations(), secretAnnotKey)
 		if transformTo != "" {
 			mergeCombinedPEM(rec, &secret)
 		}
 
-		copyCACrtKey := secret.GetAnnotations()[secretSyncCACRTAnnotKey]
+		copyCACrtKey := getAnnotValue(secret.GetAnnotations(), secretSyncCACRTAnnotKey)
 		if copyCACrtKey != "" {
 			err := copyKey(secret, "ca.crt", copyCACrtKey)
 			if err != nil {
@@ -130,7 +170,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTLSCrtKey := secret.GetAnnotations()[secretSyncTLSCrtAnnotKey]
+		copyTLSCrtKey := getAnnotValue(secret.GetAnnotations(), secretSyncTLSCrtAnnotKey)
 		if copyTLSCrtKey != "" {
 			err := copyKey(secret, "tls.crt", copyTLSCrtKey)
 			if err != nil {
@@ -140,7 +180,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTLSKeyKey := secret.GetAnnotations()[secretSyncTLSKeyAnnotKey]
+		copyTLSKeyKey := getAnnotValue(secret.GetAnnotations(), secretSyncTLSKeyAnnotKey)
 		if copyTLSKeyKey != "" {
 			err := copyKey(secret, "tls.key", copyTLSKeyKey)
 			if err != nil {
@@ -150,7 +190,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyKeystoreJKSKey := secret.GetAnnotations()[secretSyncKeystoreJKSAnnotKey]
+		copyKeystoreJKSKey := getAnnotValue(secret.GetAnnotations(), secretSyncKeystoreJKSAnnotKey)
 		if copyKeystoreJKSKey != "" {
 			err := copyKey(secret, "keystore.jks", copyKeystoreJKSKey)
 			if err != nil {
@@ -160,7 +200,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTruststoreJKSKey := secret.GetAnnotations()[secretSyncTruststoreJKSAnnotKey]
+		copyTruststoreJKSKey := getAnnotValue(secret.GetAnnotations(), secretSyncTruststoreJKSAnnotKey)
 		if copyTruststoreJKSKey != "" {
 			err := copyKey(secret, "truststore.jks", copyTruststoreJKSKey)
 			if err != nil {
@@ -170,7 +210,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyKeystoreP12Key := secret.GetAnnotations()[secretSyncKeystoreP12AnnotKey]
+		copyKeystoreP12Key := getAnnotValue(secret.GetAnnotations(), secretSyncKeystoreP12AnnotKey)
 		if copyKeystoreP12Key != "" {
 			err := copyKey(secret, "keystore.p12", copyKeystoreP12Key)
 			if err != nil {
@@ -180,7 +220,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 			}
 		}
 
-		copyTruststoreP12Key := secret.GetAnnotations()[secretSyncTruststoreP12AnnotKey]
+		copyTruststoreP12Key := getAnnotValue(secret.GetAnnotations(), secretSyncTruststoreP12AnnotKey)
 		if copyTruststoreP12Key != "" {
 			err := copyKey(secret, "truststore.p12", copyTruststoreP12Key)
 			if err != nil {
@@ -234,14 +274,14 @@ func ShouldReconcileSecret(annotations map[string]string) bool {
 		return false
 	}
 
-	return annotations[secretAnnotKey] != "" ||
-		annotations[secretSyncCACRTAnnotKey] != "" ||
-		annotations[secretSyncTLSCrtAnnotKey] != "" ||
-		annotations[secretSyncTLSKeyAnnotKey] != "" ||
-		annotations[secretSyncKeystoreJKSAnnotKey] != "" ||
-		annotations[secretSyncTruststoreJKSAnnotKey] != "" ||
-		annotations[secretSyncKeystoreP12AnnotKey] != "" ||
-		annotations[secretSyncTruststoreP12AnnotKey] != ""
+	return getAnnotValue(annotations, secretAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncCACRTAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTLSCrtAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTLSKeyAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncKeystoreJKSAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTruststoreJKSAnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncKeystoreP12AnnotKey) != "" ||
+		getAnnotValue(annotations, secretSyncTruststoreP12AnnotKey) != ""
 }
 
 // setupReconciler sets up the controller with the Manager. This is extracted as
