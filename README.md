@@ -1,6 +1,6 @@
 # Secret Transform
 
-Copy and tranform the contents of your Kubernetes Secrets that contain TLS key
+Copy and transform the contents of your Kubernetes Secrets that contain TLS key
 material. When a Secret is changed, secret-transform automatically re-copies or
 re-transforms the Secret.
 
@@ -370,7 +370,7 @@ net:
     certificateKeyFile: /etc/ssl/mongodb.pem
 ```
 
-> :heavy_check_mark: secret-tranform should be able to get around this.
+> :heavy_check_mark: secret-transform should be able to get around this.
 
 <a id="use-case-haproxy-community-edition-and-haproxy-enterprise-edition"/>
 
@@ -383,7 +383,7 @@ frontend www
    bind :443 ssl crt /etc/certs/ssl.pem
 ```
 
-> :heavy_check_mark: secret-tranform should be able to get around this.
+> :heavy_check_mark: secret-transform should be able to get around this.
 
 <a id="use-case-hitch"/>
 
@@ -403,7 +403,7 @@ pem-file = {
 }
 ```
 
-> :heavy_check_mark: secret-tranform should be able to get around this.
+> :heavy_check_mark: secret-transform should be able to get around this.
 
 <a id="use-case-postgres-jbdc-driver-lower-than-4229"/>
 
