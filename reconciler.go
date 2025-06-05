@@ -57,9 +57,8 @@ const (
 // Secret's data.
 func mergeCombinedPEM(rec record.EventRecorder, secret *corev1.Secret) {
 	transformTo := secret.GetAnnotations()[secretAnnotKey]
-
 	if transformTo != tlsPEMDataKey {
-		rec.Eventf(secret, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", transformTo, tlsPEMDataKey)
+		rec.Eventf(secret, corev1.EventTypeWarning, "InvalidSecretTransform", "Value %s is invalid for annotation %s", transformTo, secretAnnotKey)
 		return
 	}
 
@@ -123,7 +122,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		copyCACrtKey := secret.GetAnnotations()[secretSyncCACRTAnnotKey]
 		if copyCACrtKey != "" {
-			err = copyKey(secret, "ca.crt", copyCACrtKey)
+			err := copyKey(secret, "ca.crt", copyCACrtKey)
 			if err != nil {
 				log.WithValues(err, "while copying")
 				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
@@ -133,7 +132,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		copyTLSCrtKey := secret.GetAnnotations()[secretSyncTLSCrtAnnotKey]
 		if copyTLSCrtKey != "" {
-			err = copyKey(secret, "tls.crt", copyTLSCrtKey)
+			err := copyKey(secret, "tls.crt", copyTLSCrtKey)
 			if err != nil {
 				log.WithValues(err, "while copying")
 				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
@@ -143,7 +142,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		copyTLSKeyKey := secret.GetAnnotations()[secretSyncTLSKeyAnnotKey]
 		if copyTLSKeyKey != "" {
-			copyKey(secret, "tls.key", copyTLSKeyKey)
+			err := copyKey(secret, "tls.key", copyTLSKeyKey)
 			if err != nil {
 				log.WithValues(err, "while copying")
 				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
@@ -153,7 +152,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		copyKeystoreJKSKey := secret.GetAnnotations()[secretSyncKeystoreJKSAnnotKey]
 		if copyKeystoreJKSKey != "" {
-			copyKey(secret, "keystore.jks", copyKeystoreJKSKey)
+			err := copyKey(secret, "keystore.jks", copyKeystoreJKSKey)
 			if err != nil {
 				log.WithValues(err, "while copying")
 				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
@@ -163,7 +162,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		copyTruststoreJKSKey := secret.GetAnnotations()[secretSyncTruststoreJKSAnnotKey]
 		if copyTruststoreJKSKey != "" {
-			copyKey(secret, "truststore.jks", copyTruststoreJKSKey)
+			err := copyKey(secret, "truststore.jks", copyTruststoreJKSKey)
 			if err != nil {
 				log.WithValues(err, "while copying")
 				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
@@ -173,7 +172,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		copyKeystoreP12Key := secret.GetAnnotations()[secretSyncKeystoreP12AnnotKey]
 		if copyKeystoreP12Key != "" {
-			copyKey(secret, "keystore.p12", copyKeystoreP12Key)
+			err := copyKey(secret, "keystore.p12", copyKeystoreP12Key)
 			if err != nil {
 				log.WithValues(err, "while copying")
 				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
@@ -183,7 +182,7 @@ func Reconciler(client client.Client, rec record.EventRecorder) reconcile.Func {
 
 		copyTruststoreP12Key := secret.GetAnnotations()[secretSyncTruststoreP12AnnotKey]
 		if copyTruststoreP12Key != "" {
-			copyKey(secret, "truststore.p12", copyTruststoreP12Key)
+			err := copyKey(secret, "truststore.p12", copyTruststoreP12Key)
 			if err != nil {
 				log.WithValues(err, "while copying")
 				rec.Eventf(&secret, corev1.EventTypeWarning, "FailedCopying", err.Error())
