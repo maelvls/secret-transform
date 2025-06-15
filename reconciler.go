@@ -68,8 +68,8 @@ const (
 	oldSecretSyncTruststoreP12AnnotKey = "cert-manager.io/secret-copy-truststore.p12"
 )
 
-// Handles the "cert-manager.io/secret-transform" annotation. Mutates the
-// Secret's data.
+// Handles the "secret-transform/secret-transform" annotation and its legacy
+// counterpart "cert-manager.io/secret-transform". Mutates the Secret's data.
 func mergeCombinedPEM(rec record.EventRecorder, secret *corev1.Secret) {
 	annot, transformTo := getOneOf(secret.GetAnnotations(), secretAnnotKey, oldSecretAnnotKey)
 	if transformTo != tlsPEMDataKey {
@@ -98,8 +98,8 @@ func mergeCombinedPEM(rec record.EventRecorder, secret *corev1.Secret) {
 	secret.Data[tlsPEMDataKey] = tlsPEMNew
 }
 
-// The Secret is mutated. Returns true if the Secret was mutated, false if
-// nothing was changed. Returns an error if the key does not exist.
+// The Secret is mutated when the destination differs from the source.
+// Returns an error if the source key does not exist.
 func copyKey(secret corev1.Secret, keyFrom string, keyTo string) error {
 	caCrtOriginal, exists := secret.Data[keyFrom]
 	if !exists {
