@@ -25,6 +25,18 @@ jobs:
 
       - run: go test ./... -v
 
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          diff=$(gofmt -d $(git ls-files '*.go'))
+          if [ -n "$diff" ]; then
+            echo "$diff"
+            echo 'Go files are not properly formatted'
+            exit 1
+          fi
+
       - name: Run GoReleaser (PR)
         uses: goreleaser/goreleaser-action@v5
         if: ${{ !startsWith(github.ref, 'refs/tags') }}
