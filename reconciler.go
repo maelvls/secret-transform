@@ -91,7 +91,7 @@ func mergeCombinedPEM(rec record.EventRecorder, secret *corev1.Secret) {
 
 	tlsPEMNew := []byte(fmt.Sprintf("%s%s", tlsKey, tlsCrt))
 
-	if tlsPEMOld, exists := secret.Data[tlsPEMDataKey]; exists && bytes.Compare(tlsPEMOld, tlsPEMNew) == 0 {
+	if tlsPEMOld, exists := secret.Data[tlsPEMDataKey]; exists && bytes.Equal(tlsPEMOld, tlsPEMNew) {
 		return
 	}
 
@@ -107,7 +107,7 @@ func copyKey(secret corev1.Secret, keyFrom string, keyTo string) error {
 	}
 
 	caCrtCopy := secret.Data[keyTo]
-	if bytes.Compare(caCrtOriginal, caCrtCopy) == 0 {
+	if bytes.Equal(caCrtOriginal, caCrtCopy) {
 		return nil
 	}
 
