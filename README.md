@@ -7,6 +7,7 @@ re-transforms the Secret.
 - [Installation \& Quick Start](#installation--quick-start)
 - [Debugging](#debugging)
 - [Renaming the key of a Secret](#renaming-the-key-of-a-secret)
+- [Renaming of optional keystore keys](#renaming-of-optional-keystore-keys)
   - [Use-case: Redis Enterprise for Kubernetes](#use-case-redis-enterprise-for-kubernetes)
   - [Use-case: FluxCD](#use-case-fluxcd)
 - [Combined PEM bundle](#combined-pem-bundle)
@@ -457,8 +458,9 @@ Dovecot is an IMAP and POP3 server. It requires separate PEM files for the certi
 We use `goreleaser`. To cut a new release:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+export VERSION=v0.5.0
+git tag --annotate --message="Release ${VERSION}" "${VERSION}"
+git push origin "${VERSION}"
 ```
 
 The GitHub Action will push the new Helm chart and Docker images, and a draft
