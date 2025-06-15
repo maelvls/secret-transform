@@ -14,16 +14,28 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v4
-        with:
-          go-version: "1.22.x"
+      - uses: actions/setup-go@v5
       - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@v4
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: go test ./... -v
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          diff=$(gofmt -d $(git ls-files '*.go'))
+          if [ -n "$diff" ]; then
+            echo "$diff"
+            echo 'Go files are not properly formatted'
+            exit 1
+          fi
 
       - name: Run GoReleaser (PR)
         uses: goreleaser/goreleaser-action@v5

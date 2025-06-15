@@ -15,29 +15,50 @@ import (
 )
 
 func TestReconciler(t *testing.T) {
-	t.Run("the secret-transform annot combines tls.key and tls.crt", run_TestReconciler(case_TestReconciler{
+
+	t.Run("the 'secret-transform/secret-transform' annot combines tls.key and tls.crt", run_TestReconciler(case_TestReconciler{
+		given: secret(
+			map[string]string{"secret-transform/secret-transform": "tls.pem"},
+			map[string][]byte{"tls.key": []byte("fakeKey"), "tls.crt": []byte("fakeCrt")},
+		),
+		expectKeys:   []string{"tls.pem"},
+		expectValues: map[string]string{"tls.pem": "fakeKeyfakeCrt"},
+	}))
+	t.Run("the 'cert-manager.io/secret-transform' annot combines tls.key and tls.crt", run_TestReconciler(case_TestReconciler{
 		given: secret(
 			map[string]string{"cert-manager.io/secret-transform": "tls.pem"},
 			map[string][]byte{"tls.key": []byte("fakeKey"), "tls.crt": []byte("fakeCrt")},
 		),
-		expectKeys: []string{"tls.pem"},
-		expectValues: map[string]string{
-			"tls.pem": "fakeKeyfakeCrt",
-		},
+		expectKeys:   []string{"tls.pem"},
+		expectValues: map[string]string{"tls.pem": "fakeKeyfakeCrt"},
 	}))
 
-	t.Run("the secret-copy-ca.crt annot copies ca.crt", run_TestReconciler(case_TestReconciler{
+	t.Run("the 'secret-transform/secret-copy-ca.crt' annot copies ca.crt", run_TestReconciler(case_TestReconciler{
+		given: secret(
+			map[string]string{"secret-transform/secret-copy-ca.crt": "ca"},
+			map[string][]byte{"ca.crt": []byte("fakeCACrt")},
+		),
+		expectKeys:   []string{"ca"},
+		expectValues: map[string]string{"ca": "fakeCACrt"},
+	}))
+	t.Run("the 'cert-manager.io/secret-copy-ca.crt' annot copies ca.crt", run_TestReconciler(case_TestReconciler{
 		given: secret(
 			map[string]string{"cert-manager.io/secret-copy-ca.crt": "ca"},
 			map[string][]byte{"ca.crt": []byte("fakeCACrt")},
 		),
-		expectKeys: []string{"ca"},
-		expectValues: map[string]string{
-			"ca": "fakeCACrt",
-		},
+		expectKeys:   []string{"ca"},
+		expectValues: map[string]string{"ca": "fakeCACrt"},
 	}))
 
-	t.Run("the secret-copy-tls.crt annot copies tls.crt", run_TestReconciler(case_TestReconciler{
+	t.Run("the 'secret-transform/secret-copy-tls.crt' annot copies tls.crt", run_TestReconciler(case_TestReconciler{
+		given: secret(
+			map[string]string{"secret-transform/secret-copy-tls.crt": "cert"},
+			map[string][]byte{"tls.crt": []byte("fakeTLSCrt")},
+		),
+		expectKeys:   []string{"cert"},
+		expectValues: map[string]string{"cert": "fakeTLSCrt"},
+	}))
+	t.Run("the 'cert-manager.io/secret-copy-tls.crt' annot copies tls.crt", run_TestReconciler(case_TestReconciler{
 		given: secret(
 			map[string]string{"cert-manager.io/secret-copy-tls.crt": "cert"},
 			map[string][]byte{"tls.crt": []byte("fakeTLSCrt")},
@@ -46,7 +67,15 @@ func TestReconciler(t *testing.T) {
 		expectValues: map[string]string{"cert": "fakeTLSCrt"},
 	}))
 
-	t.Run("the secret-copy-keystore.jks annot copies keystore.jks", run_TestReconciler(case_TestReconciler{
+	t.Run("the 'secret-transform/secret-copy-keystore.jks' annot copies keystore.jks", run_TestReconciler(case_TestReconciler{
+		given: secret(
+			map[string]string{"secret-transform/secret-copy-keystore.jks": "keystore"},
+			map[string][]byte{"keystore.jks": []byte("fakeKeystoreJKS")},
+		),
+		expectKeys:   []string{"keystore"},
+		expectValues: map[string]string{"keystore": "fakeKeystoreJKS"},
+	}))
+	t.Run("the 'cert-manager.io/secret-copy-keystore.jks' annot copies keystore.jks", run_TestReconciler(case_TestReconciler{
 		given: secret(
 			map[string]string{"cert-manager.io/secret-copy-keystore.jks": "keystore"},
 			map[string][]byte{"keystore.jks": []byte("fakeKeystoreJKS")},
@@ -55,9 +84,9 @@ func TestReconciler(t *testing.T) {
 		expectValues: map[string]string{"keystore": "fakeKeystoreJKS"},
 	}))
 
-	t.Run("the secret-copy-tls.key annot copies tls.key", run_TestReconciler(case_TestReconciler{
+	t.Run("the 'secret-transform/secret-copy-tls.key' annot copies tls.key", run_TestReconciler(case_TestReconciler{
 		given: secret(
-			map[string]string{"cert-manager.io/secret-copy-tls.key": "key"},
+			map[string]string{"secret-transform/secret-copy-tls.key": "key"},
 			map[string][]byte{"tls.key": []byte("fakeTLSKey")},
 		),
 		expectKeys: []string{"key"},
@@ -65,16 +94,32 @@ func TestReconciler(t *testing.T) {
 			"key": "fakeTLSKey",
 		},
 	}))
-	t.Run("the secret-copy-truststore.jks annot copies truststore.jks", run_TestReconciler(case_TestReconciler{
+	t.Run("the 'cert-manager.io/secret-copy-tls.key' annot copies tls.key", run_TestReconciler(case_TestReconciler{
+		given: secret(
+			map[string]string{"cert-manager.io/secret-copy-tls.key": "key"},
+			map[string][]byte{"tls.key": []byte("fakeTLSKey")},
+		),
+		expectKeys:   []string{"key"},
+		expectValues: map[string]string{"key": "fakeTLSKey"},
+	}))
+
+	t.Run("the 'secret-transform/secret-copy-truststore.jks' annot copies truststore.jks", run_TestReconciler(case_TestReconciler{
+		given: secret(
+			map[string]string{"secret-transform/secret-copy-truststore.jks": "truststore"},
+			map[string][]byte{"truststore.jks": []byte("fakeTruststoreJKS")},
+		),
+		expectKeys:   []string{"truststore"},
+		expectValues: map[string]string{"truststore": "fakeTruststoreJKS"},
+	}))
+	t.Run("the 'cert-manager.io/secret-copy-truststore.jks' annot copies truststore.jks", run_TestReconciler(case_TestReconciler{
 		given: secret(
 			map[string]string{"cert-manager.io/secret-copy-truststore.jks": "truststore"},
 			map[string][]byte{"truststore.jks": []byte("fakeTruststoreJKS")},
 		),
-		expectKeys: []string{"truststore"},
-		expectValues: map[string]string{
-			"truststore": "fakeTruststoreJKS",
-		},
+		expectKeys:   []string{"truststore"},
+		expectValues: map[string]string{"truststore": "fakeTruststoreJKS"},
 	}))
+
 	t.Run("the secret-copy-keystore.p12 annot copies keystore.p12", run_TestReconciler(case_TestReconciler{
 		given: secret(
 			map[string]string{"cert-manager.io/secret-copy-keystore.p12": "keystore"},
@@ -86,69 +131,45 @@ func TestReconciler(t *testing.T) {
 }
 
 func TestShouldReconcileSecret(t *testing.T) {
-	t.Run("nil annotations should not reconcile", func(t *testing.T) {
-		assert.False(t, ShouldReconcileSecret(nil))
-	})
+	t.Run("should not reconcile when no annotations are present", run(false))
+	t.Run("empty annotations should not reconcile", run(false))
+	t.Run("unrelated annotations should not reconcile", run(false, "foo", "bar"))
 
-	t.Run("empty annotations should not reconcile", func(t *testing.T) {
-		assert.False(t, ShouldReconcileSecret(map[string]string{}))
-	})
+	t.Run("secret-transform/secret-transform", run(true, "secret-transform/secret-transform", "tls.pem"))
+	t.Run("secret-transform/secret-copy-ca.crt", run(true, "secret-transform/secret-copy-ca.crt", "ca"))
+	t.Run("secret-transform/secret-copy-tls.crt", run(true, "secret-transform/secret-copy-tls.crt", "cert"))
+	t.Run("secret-transform/secret-copy-tls.key", run(true, "secret-transform/secret-copy-tls.key", "key"))
+	t.Run("secret-transform/secret-copy-keystore.jks", run(true, "secret-transform/secret-copy-keystore.jks", "keystore"))
+	t.Run("secret-transform/secret-copy-truststore.jks", run(true, "secret-transform/secret-copy-truststore.jks", "truststore"))
+	t.Run("secret-transform/secret-copy-keystore.p12", run(true, "secret-transform/secret-copy-keystore.p12", "keystore"))
+	t.Run("secret-transform/secret-copy-truststore.p12", run(true, "secret-transform/secret-copy-truststore.p12", "truststore"))
 
-	t.Run("transform annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-transform": "tls.pem",
-		}))
-	})
-
-	t.Run("ca.crt copy annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-copy-ca.crt": "ca",
-		}))
-	})
-
-	t.Run("tls.crt copy annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-copy-tls.crt": "cert",
-		}))
-	})
-
-	t.Run("tls.key copy annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-copy-tls.key": "key",
-		}))
-	})
-
-	t.Run("keystore.jks copy annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-copy-keystore.jks": "keystore",
-		}))
-	})
-
-	t.Run("truststore.jks copy annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-copy-truststore.jks": "truststore",
-		}))
-	})
-
-	t.Run("keystore.p12 copy annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-copy-keystore.p12": "keystore",
-		}))
-	})
-
-	t.Run("truststore.p12 copy annotation should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcileSecret(map[string]string{
-			"cert-manager.io/secret-copy-truststore.p12": "truststore",
-		}))
-	})
-
-	t.Run("unrelated annotation should not reconcile", func(t *testing.T) {
-		assert.False(t, ShouldReconcileSecret(map[string]string{
-			"unrelated": "value",
-		}))
-	})
+	t.Run("cert-manager.io/secret-transform", run(true, "cert-manager.io/secret-transform", "tls.pem"))
+	t.Run("cert-manager.io/secret-copy-ca.crt", run(true, "cert-manager.io/secret-copy-ca.crt", "ca"))
+	t.Run("cert-manager.io/secret-copy-tls.crt", run(true, "cert-manager.io/secret-copy-tls.crt", "cert"))
+	t.Run("cert-manager.io/secret-copy-tls.key", run(true, "cert-manager.io/secret-copy-tls.key", "key"))
+	t.Run("cert-manager.io/secret-copy-keystore.jks", run(true, "cert-manager.io/secret-copy-keystore.jks", "keystore"))
+	t.Run("cert-manager.io/secret-copy-truststore.jks", run(true, "cert-manager.io/secret-copy-truststore.jks", "truststore"))
+	t.Run("cert-manager.io/secret-copy-keystore.p12", run(true, "cert-manager.io/secret-copy-keystore.p12", "keystore"))
+	t.Run("cert-manager.io/secret-copy-truststore.p12", run(true, "cert-manager.io/secret-copy-truststore.p12", "truststore"))
 }
 
+func run(shouldReconcile bool, annotsKeyAndValues ...string) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		annotations := make(map[string]string)
+		for i := 0; i < len(annotsKeyAndValues); i += 2 {
+			annotations[annotsKeyAndValues[i]] = annotsKeyAndValues[i+1]
+		}
+
+		assert.Equal(t, shouldReconcile, ShouldReconcileSecret(annotations))
+	}
+}
+
+// Tests for the two annotations:
+//
+//	secret-transform/secret-transform
+//	cert-manager.io/secret-transform
 func TestMergeCombinedPEM(t *testing.T) {
 	t.Run("secret-transform annot: happy case", func(t *testing.T) {
 		given := secret(map[string]string{
@@ -180,7 +201,7 @@ func TestMergeCombinedPEM(t *testing.T) {
 		got := given.DeepCopy()
 		mergeCombinedPEM(rec, got)
 		assert.Equal(t, given, got)
-		assertEvents(t, rec, "Warning InvalidSecretTransform Value invalid-value is invalid for annotation tls.pem")
+		assertEvents(t, rec, "Warning InvalidSecretTransform Value 'invalid-value' is invalid for annotation 'cert-manager.io/secret-transform'. The only valid value is 'tls.pem'")
 	})
 
 	t.Run("secret-transform annot: show an event when tls.key is missing", func(t *testing.T) {
@@ -241,7 +262,7 @@ type case_TestReconciler struct {
 	expectValues map[string]string
 }
 
-func run_TestReconciler(test case_TestReconciler) func(t *testing.T) {
+func run_TestReconciler(test case_TestReconciler) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		scheme := runtime.NewScheme()
