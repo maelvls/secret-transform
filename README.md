@@ -33,7 +33,7 @@ helm upgrade --install secret-transform -n secret-transform --create-namespace \
 Then, annotate a Secret:
 
 ```bash
-kubectl annotate secret cert-1 cert-manager.io/secret-copy-tls.crt=tlsCert
+kubectl annotate secret cert-1 secret-transform/secret-copy-tls.crt=tlsCert
 ```
 
 You will see that the value for the key `tls.crt` has been copied to the
@@ -79,9 +79,9 @@ annotations:
 kind: Secret
 metadata:
   annotations:
-    cert-manager.io/secret-copy-ca.crt: caFile    # ✨ "ca.crt" to be renamed to "caFile"
-    cert-manager.io/secret-copy-tls.crt: certFile # ✨ "tls.crt" to be renamed to "certFile"
-    cert-manager.io/secret-copy-tls.key: keyFile  # ✨ "tls.key" to be renamed to "keyFile"
+    secret-transform/secret-copy-ca.crt: caFile    # ✨ "ca.crt" to be renamed to "caFile"
+    secret-transform/secret-copy-tls.crt: certFile # ✨ "tls.crt" to be renamed to "certFile"
+    secret-transform/secret-copy-tls.key: keyFile  # ✨ "tls.key" to be renamed to "keyFile"
 stringData:
   tls.crt: <the PEM-encoded contents of the certificate>
   tls.key: <the PEM-encoded contents of the private key>
@@ -94,9 +94,9 @@ After adding the annotations, you will see the new keys appear in the Secret:
  kind: Secret
  metadata:
    annotations:
-     cert-manager.io/secret-copy-ca.crt: caFile
-     cert-manager.io/secret-copy-tls.crt: certFile
-     cert-manager.io/secret-copy-tls.key: keyFile
+     secret-transform/secret-copy-ca.crt: caFile
+     secret-transform/secret-copy-tls.crt: certFile
+     secret-transform/secret-copy-tls.key: keyFile
  data:
     tls.crt: <the PEM-encoded contents of the certificate>
     tls.key: <the PEM-encoded contents of the private key>
@@ -117,8 +117,8 @@ Similar to renaming the default Keys you can use it to rename your keystore keys
 kind: Secret
 metadata:
   annotations:
-    cert-manager.io/secret-copy-keystore.jks: keystore      # ✨ "keystore.jks" to be renamed to "keystore"
-    cert-manager.io/secret-copy-truststore.jks: truststore  # ✨ "truststore.jks" to be renamed to "truststore"
+    secret-transform/secret-copy-keystore.jks: keystore      # ✨ "keystore.jks" to be renamed to "keystore"
+    secret-transform/secret-copy-truststore.jks: truststore  # ✨ "truststore.jks" to be renamed to "truststore"
 stringData:
   tls.crt: <the PEM-encoded contents of the certificate>
   tls.key: <the PEM-encoded contents of the private key>
@@ -133,8 +133,8 @@ After adding the annotations, you will see the new keys appear in the Secret:
  kind: Secret
  metadata:
    annotations:
-    cert-manager.io/secret-copy-keystore.jks: keystore
-    cert-manager.io/secret-copy-truststore.jks: truststore
+    secret-transform/secret-copy-keystore.jks: keystore
+    secret-transform/secret-copy-truststore.jks: truststore
  data:
     tls.crt: <the PEM-encoded contents of the certificate>
     tls.key: <the PEM-encoded contents of the private key>
@@ -151,8 +151,8 @@ After adding the annotations, you will see the new keys appear in the Secret:
 kind: Secret
 metadata:
   annotations:
-    cert-manager.io/secret-copy-keystore.p12: keystore      # ✨ "keystore.p12" to be renamed to "keystore"
-    cert-manager.io/secret-copy-truststore.p12: truststore  # ✨ "truststore.p12" to be renamed to "truststore"
+    secret-transform/secret-copy-keystore.p12: keystore      # ✨ "keystore.p12" to be renamed to "keystore"
+    secret-transform/secret-copy-truststore.p12: truststore  # ✨ "truststore.p12" to be renamed to "truststore"
 stringData:
   tls.crt: <the PEM-encoded contents of the certificate>
   tls.key: <the PEM-encoded contents of the private key>
@@ -167,8 +167,8 @@ After adding the annotations, you will see the new keys appear in the Secret:
  kind: Secret
  metadata:
    annotations:
-    cert-manager.io/secret-copy-keystore.p12: keystore
-    cert-manager.io/secret-copy-truststore.p12: truststore
+    secret-transform/secret-copy-keystore.p12: keystore
+    secret-transform/secret-copy-truststore.p12: truststore
  data:
     tls.crt: <the PEM-encoded contents of the certificate>
     tls.key: <the PEM-encoded contents of the private key>
@@ -212,8 +212,8 @@ type: kubernetes.io/tls
 metadata:
   name: redis-cert1
   annotations:
-    cert-manager.io/secret-copy-tls.crt: certificate
-    cert-manager.io/secret-copy-tls.key: key
+    secret-transform/secret-copy-tls.crt: certificate
+    secret-transform/secret-copy-tls.key: key
 data:
   name: proxy
 ```
@@ -229,8 +229,8 @@ type: kubernetes.io/tls
 metadata:
   name: redis-cert1
   annotations:
-    cert-manager.io/secret-copy-tls.crt: certificate
-    cert-manager.io/secret-copy-tls.key: key
+    secret-transform/secret-copy-tls.crt: certificate
+    secret-transform/secret-copy-tls.key: key
 data:
   tls.crt: LS0tLCR...UdJ0tC7g==
   tls.key: CRUdJTo...Ci0tLS0t==
@@ -254,9 +254,9 @@ kind: Secret
 type: kubernetes.io/tls
 metadata:
   annotations:
-    cert-manager.io/secret-copy-ca.crt: caFile
-    cert-manager.io/secret-copy-tls.crt: certFile
-    cert-manager.io/secret-copy-tls.key: keyFile
+    secret-transform/secret-copy-ca.crt: caFile
+    secret-transform/secret-copy-tls.crt: certFile
+    secret-transform/secret-copy-tls.key: keyFile
 data:
   tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
   tls.key: LS0tLS1CRUdJToCi0tLS0tRU5EIF...SBQUklWQVRFIEtFWS0tLS0tCg==
@@ -271,9 +271,9 @@ kind: Secret
 type: kubernetes.io/tls
 metadata:
   annotations:
-    cert-manager.io/secret-copy-ca.crt: caFile
-    cert-manager.io/secret-copy-tls.crt: certFile
-    cert-manager.io/secret-copy-tls.key: keyFile
+    secret-transform/secret-copy-ca.crt: caFile
+    secret-transform/secret-copy-tls.crt: certFile
+    secret-transform/secret-copy-tls.key: keyFile
 data:
   tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
   tls.key: LS0tLS1CRUdJToCi0tLS0tRU5EIF...SBQUklWQVRFIEtFWS0tLS0tCg==
@@ -290,7 +290,7 @@ data:
 > cert-manager 1.7 with the field `additionalOutputFormats: CombinedPEM`.
 > Since the feature is still in alpha (as of Sept 2023), you will need to use the feature
 > flag `--feature-gates=AdditionalCertificateOutputFormats=true`. You can read more in the cert-manager documentation page
-> [Additional Certificate Output Formats](https://cert-manager.io/docs/usage/certificate/#additional-certificate-output-formats).
+> [Additional Certificate Output Formats](https://secret-transform/docs/usage/certificate/#additional-certificate-output-formats).
 
 Another common request reported in the cert-manager issue
 [#843](https://github.com/jetstack/cert-manager/issues/843) is to create a PEM
@@ -311,7 +311,7 @@ kind: Secret
 type: kubernetes.io/tls
 metadata:
   annotations:
-    cert-manager.io/secret-transform: tls.pem
+    secret-transform/secret-transform: tls.pem
 data:
   tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
   tls.key: LS0tLS1CRUdJToCi0tLS0tRU5EIF...SBQUklWQVRFIEtFWS0tLS0tCg==
@@ -326,7 +326,7 @@ kind: Secret
 type: kubernetes.io/tls
 metadata:
   annotations:
-    cert-manager.io/secret-transform: tls.pem
+    secret-transform/secret-transform: tls.pem
 data:
   tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...CBDRVJUSUZJQ0FURS0tLS0tCg==
   tls.key: LS0tLS1CRUdJToCi0tLS0tRU5EIF...SBQUklWQVRFIEtFWS0tLS0tCg==
